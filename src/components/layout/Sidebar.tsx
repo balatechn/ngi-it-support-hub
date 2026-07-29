@@ -30,8 +30,9 @@ const nav = [
 ];
 
 const secondary = [
-  { label: "Team Members", href: "/team", icon: Users },
-  { label: "Settings", href: "/settings", icon: Settings },
+  { label: "Team Members",  href: "/team",     icon: Users },
+  { label: "Entra ID Admin",href: "/admin",    icon: Shield },
+  { label: "Settings",      href: "/settings", icon: Settings },
 ];
 
 export function Sidebar() {
@@ -47,7 +48,7 @@ export function Sidebar() {
         </div>
         <div>
           <p className="text-white font-semibold text-sm leading-tight">IT Support Hub</p>
-          <p className="text-white/40 text-[11px]">Contoso</p>
+          <p className="text-white/40 text-[11px]">National Group India</p>
         </div>
       </div>
 

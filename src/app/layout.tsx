@@ -4,7 +4,7 @@ import { Providers } from "./providers";
 
 export const metadata: Metadata = {
   title: {
-    default: "IT Support Hub | Contoso",
+    default: "IT Support Hub | National Group India",
     template: "%s | IT Support Hub",
   },
   description: "Enterprise IT Support & Remote Assistance Platform",

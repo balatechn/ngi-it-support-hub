@@ -9,5 +9,8 @@ export const config = {
     "/sla/:path*",
     "/analytics/:path*",
     "/teams/:path*",
+    "/admin/:path*",
+    "/team/:path*",
+    "/settings/:path*",
   ],
 };
