@@ -1,0 +1,178 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Design tokens ─────────────────────────────────────────── */
+:root {
+  /* Brand */
+  --azure:       #0078D4;
+  --azure-dark:  #106EBE;
+  --teams:       #6264A7;
+
+  /* Surfaces */
+  --bg-base:     #F3F6FB;
+  --bg-card:     #FFFFFF;
+  --bg-sidebar:  #071629;
+  --bg-sidebar-hover: rgba(255,255,255,0.06);
+  --bg-sidebar-active: #0078D4;
+
+  /* Text */
+  --text-primary:   #111827;
+  --text-secondary: #4B5563;
+  --text-muted:     #9CA3AF;
+  --text-sidebar:   #C8D6E8;
+  --text-sidebar-active: #FFFFFF;
+
+  /* Borders */
+  --border:      #E5EAF0;
+  --border-strong: #D1D9E0;
+
+  /* Semantic */
+  --success:     #16A34A;
+  --warning:     #D97706;
+  --error:       #DC2626;
+  --info:        #0284C7;
+
+  /* Shadows */
+  --shadow-sm:   0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md:   0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-base:     #0D1927;
+    --bg-card:     #132034;
+    --bg-sidebar:  #040E1C;
+    --bg-sidebar-hover: rgba(255,255,255,0.07);
+    --text-primary:   #E8EDF5;
+    --text-secondary: #8B9CB5;
+    --text-muted:     #4A5568;
+    --border:      #1E3048;
+    --border-strong: #253B55;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg-base:     #0D1927;
+  --bg-card:     #132034;
+  --bg-sidebar:  #040E1C;
+  --bg-sidebar-hover: rgba(255,255,255,0.07);
+  --text-primary:   #E8EDF5;
+  --text-secondary: #8B9CB5;
+  --text-muted:     #4A5568;
+  --border:      #1E3048;
+  --border-strong: #253B55;
+}
+
+:root[data-theme="light"] {
+  --bg-base:     #F3F6FB;
+  --bg-card:     #FFFFFF;
+  --bg-sidebar:  #071629;
+  --text-primary:   #111827;
+  --text-secondary: #4B5563;
+  --text-muted:     #9CA3AF;
+  --border:      #E5EAF0;
+  --border-strong: #D1D9E0;
+}
+
+/* ── Base styles ────────────────────────────────────────────── */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Scrollbar ──────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ── Focus ring ─────────────────────────────────────────────── */
+*:focus-visible {
+  outline: 2px solid var(--azure);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* ── Tabular nums everywhere digits align ───────────────────── */
+.tabular { font-variant-numeric: tabular-nums; }
+
+/* ── Sidebar ────────────────────────────────────────────────── */
+.sidebar {
+  background-color: var(--bg-sidebar);
+  box-shadow: 2px 0 12px rgba(0,0,0,0.25);
+}
+
+.sidebar-link {
+  color: var(--text-sidebar);
+  transition: background 0.15s ease, color 0.15s ease;
+  border-radius: 6px;
+}
+
+.sidebar-link:hover {
+  background-color: var(--bg-sidebar-hover);
+  color: #FFFFFF;
+}
+
+.sidebar-link.active {
+  background-color: var(--bg-sidebar-active);
+  color: var(--text-sidebar-active);
+}
+
+/* ── Cards ──────────────────────────────────────────────────── */
+.card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-sm);
+}
+
+.card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+/* ── Table ──────────────────────────────────────────────────── */
+.data-table th {
+  background-color: var(--bg-base);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+}
+
+.data-table td {
+  border-bottom: 1px solid var(--border);
+  color: var(--text-primary);
+}
+
+.data-table tr:last-child td {
+  border-bottom: none;
+}
+
+.data-table tr:hover td {
+  background-color: var(--bg-base);
+}
+
+/* ── Animations ─────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ── Priority stripe ────────────────────────────────────────── */
+.priority-stripe-critical { border-left: 3px solid #DC2626; }
+.priority-stripe-high     { border-left: 3px solid #EA580C; }
+.priority-stripe-medium   { border-left: 3px solid #D97706; }
+.priority-stripe-low      { border-left: 3px solid #16A34A; }
