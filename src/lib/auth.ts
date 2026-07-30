@@ -9,7 +9,7 @@ export const authOptions: NextAuthOptions = {
       clientSecret: process.env.AZURE_AD_CLIENT_SECRET!,
       tenantId: process.env.AZURE_AD_TENANT_ID,
       authorization: {
-        params: { scope: "openid profile email offline_access User.Read DeviceManagementManagedDevices.Read.All Directory.Read.All" },
+        params: { scope: "openid profile email offline_access User.Read Team.ReadBasic.All Channel.ReadBasic.All ChannelMessage.Read.All ChannelMessage.Send Group.Read.All DeviceManagementManagedDevices.Read.All Directory.Read.All" },
       },
     }),
 

@@ -10,25 +10,39 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        /* National Group India palette */
+        navy: {
+          50:  "#EEF2F8",
+          100: "#D5E0EF",
+          500: "#3A5A80",
+          700: "#1A2B40",
+          800: "#112030",
+          900: "#0F1D2E",
+          950: "#070F18",
+        },
+        gold: {
+          300: "#F0D070",
+          400: "#E8B832",
+          500: "#C49020",
+          600: "#A87818",
+          700: "#8C6010",
+        },
+        linen: {
+          50:  "#FAF8F4",
+          100: "#F5F0E8",
+          200: "#EDE8DF",
+          300: "#E0D9CC",
+          400: "#D0C8B8",
+        },
+        /* Azure kept for Microsoft-specific UI elements */
         azure: {
-          50: "#EFF6FF",
-          100: "#DBEAFE",
-          200: "#BFDBFE",
-          500: "#3B82F6",
+          500: "#2699FB",
           600: "#0078D4",
           700: "#106EBE",
-          800: "#0F5A9A",
-          900: "#0C3D6B",
         },
         teams: {
           500: "#6264A7",
           600: "#4B4D8E",
-          700: "#373775",
-        },
-        navy: {
-          800: "#0C1A2E",
-          900: "#071629",
-          950: "#040E1C",
         },
       },
       fontFamily: {
@@ -44,24 +58,14 @@ const config: Config = {
         mono: ['"Cascadia Code"', '"JetBrains Mono"', '"Fira Code"', "monospace"],
       },
       boxShadow: {
-        card: "0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)",
-        "card-hover": "0 4px 12px rgba(0,0,0,0.10), 0 2px 4px rgba(0,0,0,0.06)",
-        sidebar: "2px 0 8px rgba(0,0,0,0.15)",
+        card:       "0 1px 4px rgba(26,43,64,0.07), 0 1px 2px rgba(26,43,64,0.04)",
+        "card-hover":"0 4px 16px rgba(26,43,64,0.10), 0 2px 6px rgba(26,43,64,0.05)",
+        sidebar:    "2px 0 16px rgba(0,0,0,0.30)",
+        "card-float":"0 8px 32px rgba(26,43,64,0.12), 0 2px 8px rgba(26,43,64,0.07)",
       },
       animation: {
         "pulse-slow": "pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite",
-        "fade-in": "fadeIn 0.2s ease-out",
-        "slide-in": "slideIn 0.25s ease-out",
-      },
-      keyframes: {
-        fadeIn: {
-          "0%": { opacity: "0", transform: "translateY(4px)" },
-          "100%": { opacity: "1", transform: "translateY(0)" },
-        },
-        slideIn: {
-          "0%": { opacity: "0", transform: "translateX(-8px)" },
-          "100%": { opacity: "1", transform: "translateX(0)" },
-        },
+        "fade-in":    "fadeIn 0.25s ease-out",
       },
     },
   },

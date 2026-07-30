@@ -1,428 +1,237 @@
 "use client";
+import { useState, useEffect } from "react";
 import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
-import {
-  Shield, ChevronRight, Monitor, Clock, BarChart2, Video,
-  Copy, Check, Loader2, AlertCircle, Terminal, RefreshCw,
-} from "lucide-react";
+import { Loader2, ChevronDown, ChevronUp, Shield, Zap, Users, Globe, Eye, EyeOff } from "lucide-react";
 
-const features = [
-  { icon: Monitor,   label: "Ticket Management",  desc: "Submit, track & resolve IT requests" },
-  { icon: Video,     label: "Teams Integration",  desc: "Remote support via Microsoft Teams" },
-  { icon: Clock,     label: "SLA Monitoring",     desc: "Real-time SLA tracking & escalations" },
-  { icon: BarChart2, label: "Power BI Analytics", desc: "Live dashboards & performance reports" },
+const MicrosoftIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg">
+    <rect x="0" y="0" width="10" height="10" fill="#F25022"/>
+    <rect x="11" y="0" width="10" height="10" fill="#7FBA00"/>
+    <rect x="0" y="11" width="10" height="10" fill="#00A4EF"/>
+    <rect x="11" y="11" width="10" height="10" fill="#FFB900"/>
+  </svg>
+);
+
+const NGILogo = ({ size = 36 }: { size?: number }) => (
+  <div style={{ width: size, height: size, borderRadius: Math.round(size * 0.22), background: "#C49020", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+    <svg width={Math.round(size * 0.5)} height={Math.round(size * 0.5)} viewBox="0 0 22 22" fill="none">
+      <path d="M3 19V3L19 19V3" stroke="#FFF" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  </div>
+);
+
+const FEATURES = [
+  { icon: <Zap className="w-5 h-5" />, title: "AI-Powered Support", desc: "Instant answers from your company knowledge base" },
+  { icon: <Shield className="w-5 h-5" />, title: "Enterprise Security", desc: "Microsoft 365 SSO with zero-trust access controls" },
+  { icon: <Users className="w-5 h-5" />, title: "Real-time Tracking", desc: "Live ticket status with SLA monitoring & alerts" },
+  { icon: <Globe className="w-5 h-5" />, title: "Multi-channel Alerts", desc: "Instant WhatsApp & email notifications" },
 ];
 
-// ── Device-code flow state machine ───────────────────────────
-type DCState = "idle" | "loading" | "pending" | "success" | "error";
-
-interface DCData {
-  device_code: string;
-  user_code: string;
-  verification_uri: string;
-  expires_in: number;
-  interval: number;
-  message: string;
-}
-
-function DeviceCodePanel({ onSuccess }: { onSuccess: () => void }) {
-  const [state, setState] = useState<DCState>("idle");
-  const [dc, setDc] = useState<DCData | null>(null);
-  const [errorMsg, setErrorMsg] = useState("");
-  const [secondsLeft, setSecondsLeft] = useState(0);
-  const [copied, setCopied] = useState(false);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const clearTimers = () => {
-    if (pollRef.current)  clearInterval(pollRef.current);
-    if (timerRef.current) clearInterval(timerRef.current);
-  };
-
-  useEffect(() => () => clearTimers(), []);
-
-  const initiateFlow = async () => {
-    setState("loading");
-    setErrorMsg("");
-
-    const res = await fetch("/api/auth/devicecode", { method: "POST" });
-    const data = await res.json();
-
-    if (!res.ok || data.error) {
-      setErrorMsg(data.error ?? "Failed to start device code flow. Check Azure AD configuration.");
-      setState("error");
-      return;
-    }
-
-    setDc(data);
-    setSecondsLeft(data.expires_in);
-    setState("pending");
-
-    // Countdown timer
-    timerRef.current = setInterval(() => {
-      setSecondsLeft((s) => {
-        if (s <= 1) {
-          clearTimers();
-          setState("error");
-          setErrorMsg("Code expired. Please request a new one.");
-          return 0;
-        }
-        return s - 1;
-      });
-    }, 1000);
-
-    // Poll for token every `interval` seconds
-    pollRef.current = setInterval(async () => {
-      const pollRes = await fetch("/api/auth/devicepoll", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ device_code: data.device_code }),
-      });
-      const pollData = await pollRes.json();
-
-      if (pollData.error === "authorization_pending" || pollData.error === "slow_down") {
-        return; // still waiting
-      }
-
-      if (pollData.error) {
-        clearTimers();
-        setErrorMsg(pollData.error_description ?? pollData.error);
-        setState("error");
-        return;
-      }
-
-      // Success — sign in via NextAuth credentials provider
-      clearTimers();
-      setState("success");
-      const result = await signIn("device-code", {
-        access_token: pollData.access_token,
-        name:         pollData.user?.name ?? "",
-        email:        pollData.user?.email ?? "",
-        userId:       pollData.user?.id ?? "",
-        jobTitle:     pollData.user?.jobTitle ?? "",
-        redirect: false,
-      });
-      if (result?.ok) onSuccess();
-      else {
-        setState("error");
-        setErrorMsg("Sign-in failed after token received. Please try again.");
-      }
-    }, (data.interval ?? 5) * 1000);
-  };
-
-  const copyCode = () => {
-    if (dc) {
-      navigator.clipboard.writeText(dc.user_code);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
-  };
-
-  const minutes = Math.floor(secondsLeft / 60);
-  const seconds = secondsLeft % 60;
-
-  return (
-    <div className="mt-4">
-      {state === "idle" && (
-        <button
-          onClick={initiateFlow}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border font-medium text-sm transition-all hover:shadow-md"
-          style={{ border: "1px solid var(--border-strong)", background: "var(--bg-card)", color: "var(--text-primary)" }}
-        >
-          <Terminal className="w-4 h-4 flex-shrink-0" style={{ color: "#6264A7" }} />
-          <span className="flex-1 text-left">Sign in with Device Code / Admin CLI</span>
-          <ChevronRight className="w-4 h-4 opacity-40" />
-        </button>
-      )}
-
-      {state === "loading" && (
-        <div className="flex items-center justify-center gap-2 py-4 text-sm" style={{ color: "var(--text-muted)" }}>
-          <Loader2 className="w-4 h-4 animate-spin" />
-          Contacting Azure AD…
-        </div>
-      )}
-
-      {state === "pending" && dc && (
-        <div
-          className="rounded-xl overflow-hidden border"
-          style={{ borderColor: "#1E3048", background: "#040E1C" }}
-        >
-          {/* Terminal header */}
-          <div className="flex items-center gap-2 px-4 py-2.5 border-b" style={{ borderColor: "#1E3048" }}>
-            <span className="w-3 h-3 rounded-full bg-red-500" />
-            <span className="w-3 h-3 rounded-full bg-amber-500" />
-            <span className="w-3 h-3 rounded-full bg-emerald-500" />
-            <span className="ml-2 text-[11px] font-mono" style={{ color: "#4A6080" }}>
-              az login --use-device-code
-            </span>
-            <span className="ml-auto text-[11px] font-mono tabular" style={{ color: secondsLeft < 120 ? "#EF4444" : "#4A6080" }}>
-              {minutes}:{String(seconds).padStart(2, "0")}
-            </span>
-          </div>
-
-          <div className="px-5 py-5 font-mono">
-            {/* Step-by-step */}
-            <p className="text-[12px] mb-1" style={{ color: "#64748B" }}>$ To sign in, open:</p>
-            <a
-              href={dc.verification_uri}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[13px] underline decoration-dotted"
-              style={{ color: "#38BDF8" }}
-            >
-              {dc.verification_uri}
-            </a>
-
-            <p className="text-[12px] mt-4 mb-2" style={{ color: "#64748B" }}>and enter the code:</p>
-
-            {/* Big code display */}
-            <div className="flex items-center gap-3">
-              <span
-                className="text-3xl font-bold tracking-[0.25em] select-all"
-                style={{ color: "#F0F9FF", letterSpacing: "0.25em" }}
-              >
-                {dc.user_code}
-              </span>
-              <button
-                onClick={copyCode}
-                className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors"
-                style={{ background: copied ? "#064E3B" : "#0F2D4A", color: copied ? "#34D399" : "#94A3B8" }}
-              >
-                {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                {copied ? "Copied!" : "Copy"}
-              </button>
-            </div>
-
-            {/* Polling indicator */}
-            <div className="flex items-center gap-2 mt-5 pt-4 border-t" style={{ borderColor: "#1E3048" }}>
-              <span className="flex gap-1">
-                {[0, 1, 2].map((i) => (
-                  <span
-                    key={i}
-                    className="w-1.5 h-1.5 rounded-full animate-pulse"
-                    style={{ background: "#0078D4", animationDelay: `${i * 0.2}s` }}
-                  />
-                ))}
-              </span>
-              <span className="text-[11px]" style={{ color: "#4A6080" }}>
-                Waiting for authentication…
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {state === "success" && (
-        <div className="flex items-center gap-2 py-4 text-sm text-emerald-600">
-          <Check className="w-4 h-4" />
-          Authenticated — redirecting…
-        </div>
-      )}
-
-      {state === "error" && (
-        <div className="space-y-3">
-          <div className="flex items-start gap-2 px-4 py-3 rounded-xl text-sm" style={{ background: "#FEF2F2", color: "#DC2626" }}>
-            <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-            <p>{errorMsg}</p>
-          </div>
-          <button
-            onClick={() => { setState("idle"); setDc(null); setErrorMsg(""); }}
-            className="flex items-center gap-1.5 text-sm font-medium"
-            style={{ color: "#0078D4" }}
-          >
-            <RefreshCw className="w-3.5 h-3.5" /> Try again
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── Main login page ───────────────────────────────────────────
 export default function LoginPage() {
   const { status } = useSession();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [demoRole, setDemoRole] = useState("engineer");
-  const [tab, setTab] = useState<"sso" | "device">("sso");
-  const isDemoMode = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
-  const hasAzure = Boolean(process.env.NEXT_PUBLIC_DEMO_MODE || process.env.AZURE_AD_CLIENT_ID);
+  const [showDevCode, setShowDevCode] = useState(false);
+  const [devStep, setDevStep] = useState<"init" | "polling" | "error">("init");
+  const [deviceUrl, setDeviceUrl] = useState("");
+  const [deviceCode, setDeviceCode] = useState("");
+  const [devError, setDevError] = useState("");
+  const [showCode, setShowCode] = useState(false);
 
   useEffect(() => {
     if (status === "authenticated") router.replace("/dashboard");
   }, [status, router]);
 
-  const handleSuccess = () => router.replace("/dashboard");
-
-  const handleMicrosoftLogin = async () => {
+  const handleMicrosoft = async () => {
     setLoading(true);
-    await signIn("azure-ad", { callbackUrl: "/dashboard" });
+    try {
+      await signIn("azure-ad", { callbackUrl: "/dashboard" });
+    } catch {
+      setLoading(false);
+    }
   };
 
-  const handleDemoLogin = async () => {
-    setLoading(true);
-    await signIn("demo", { role: demoRole, callbackUrl: "/dashboard" });
+  const startDeviceCode = async () => {
+    setDevStep("polling");
+    setDevError("");
+    try {
+      const r = await fetch("/api/auth/devicecode");
+      if (!r.ok) throw new Error("Failed to start device code flow");
+      const d = await r.json();
+      setDeviceUrl(d.verification_uri);
+      setDeviceCode(d.user_code);
+      const interval = setInterval(async () => {
+        try {
+          const poll = await fetch(`/api/auth/devicepoll?device_code=${d.device_code}`);
+          const pd = await poll.json();
+          if (pd.access_token) {
+            clearInterval(interval);
+            const me = await fetch("https://graph.microsoft.com/v1.0/me", {
+              headers: { Authorization: `Bearer ${pd.access_token}` },
+            });
+            const meData = await me.json();
+            const result = await signIn("device-code", {
+              redirect: false,
+              access_token: pd.access_token,
+              name: meData.displayName,
+              email: meData.userPrincipalName,
+              userId: meData.id,
+              jobTitle: meData.jobTitle,
+            });
+            if (result?.ok) router.replace("/dashboard");
+            else { clearInterval(interval); setDevError("Authentication failed. Please try again."); setDevStep("error"); }
+          }
+        } catch { /* still polling */ }
+      }, 5000);
+      setTimeout(() => { clearInterval(interval); setDevStep("error"); setDevError("Code expired. Please try again."); }, 120000);
+    } catch (err: unknown) {
+      setDevError(err instanceof Error ? err.message : "An error occurred");
+      setDevStep("error");
+    }
   };
+
+  if (status === "loading") {
+    return (
+      <div style={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--page-bg)" }}>
+        <Loader2 className="w-8 h-8 animate-spin" style={{ color: "var(--gold)" }} />
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen flex" style={{ background: "var(--bg-base)" }}>
-      {/* Left panel */}
-      <div
-        className="hidden lg:flex flex-col w-[420px] flex-shrink-0 p-10 relative overflow-hidden"
-        style={{ background: "var(--bg-sidebar)" }}
-      >
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-0 right-0 w-64 h-64 rounded-full opacity-10"
-            style={{ background: "radial-gradient(circle, #0078D4 0%, transparent 70%)", transform: "translate(30%,-30%)" }} />
-          <div className="absolute bottom-0 left-0 w-48 h-48 rounded-full opacity-10"
-            style={{ background: "radial-gradient(circle, #6264A7 0%, transparent 70%)", transform: "translate(-20%,20%)" }} />
+    <div style={{ minHeight: "100vh", display: "flex", fontFamily: "inherit" }}>
+
+      {/* ── Left Brand Panel (desktop only) ── */}
+      <div className="hidden lg:flex" style={{ flexDirection: "column", justifyContent: "space-between", padding: "48px", background: "linear-gradient(160deg, #1A2B40 0%, #0F1D2E 60%, #0A1628 100%)", position: "relative", overflow: "hidden", width: "44%" }}>
+        <div style={{ position: "absolute", top: -80, right: -80, width: 320, height: 320, borderRadius: "50%", background: "radial-gradient(circle, rgba(196,144,32,0.12) 0%, transparent 70%)" }} />
+        <div style={{ position: "absolute", bottom: 60, left: -60, width: 280, height: 280, borderRadius: "50%", background: "radial-gradient(circle, rgba(26,120,180,0.08) 0%, transparent 70%)" }} />
+        <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.03) 1px, transparent 0)", backgroundSize: "32px 32px" }} />
+
+        <div style={{ display: "flex", alignItems: "center", gap: 12, position: "relative" }}>
+          <NGILogo size={42} />
+          <div>
+            <p style={{ color: "#fff", fontWeight: 700, fontSize: 17, lineHeight: 1.2 }}>IT Support Hub</p>
+            <p style={{ color: "rgba(255,255,255,0.38)", fontSize: 12 }}>National Group India</p>
+          </div>
         </div>
 
-        <div className="relative z-10 flex-1 flex flex-col">
-          <div className="flex items-center gap-3 mb-12">
-            <div className="w-10 h-10 rounded-xl bg-azure-600 flex items-center justify-center">
-              <Shield className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <p className="text-white font-bold text-lg leading-tight">IT Support Hub</p>
-              <p className="text-white/40 text-xs">National Group India · Enterprise</p>
-            </div>
-          </div>
-
-          <h2 className="text-white text-2xl font-bold leading-snug mb-3" style={{ textWrap: "balance" }}>
-            Your organisation&apos;s IT command centre
-          </h2>
-          <p className="text-white/50 text-sm leading-relaxed mb-10">
-            Unified platform for support tickets, remote assistance, asset tracking, and real-time SLA monitoring — integrated with Microsoft 365.
+        <div style={{ position: "relative" }}>
+          <h1 style={{ fontSize: 38, fontWeight: 800, color: "#FFFFFF", lineHeight: 1.2, marginBottom: 16, letterSpacing: "-0.02em" }}>
+            Enterprise IT<br />support,{" "}
+            <span style={{ color: "#C49020" }}>reimagined.</span>
+          </h1>
+          <p style={{ color: "rgba(255,255,255,0.50)", fontSize: 15, lineHeight: 1.7, marginBottom: 40, maxWidth: 360 }}>
+            Raise tickets, track progress, and get AI-powered answers — all in one intelligent platform built for National Group India.
           </p>
-
-          <div className="space-y-5">
-            {features.map(({ icon: Icon, label, desc }) => (
-              <div key={label} className="flex items-start gap-4">
-                <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Icon className="w-4 h-4 text-white/70" />
+          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            {FEATURES.map((f, i) => (
+              <div key={i} className="anim-fade-up" style={{ display: "flex", alignItems: "flex-start", gap: 14, animationDelay: `${0.1 + i * 0.08}s` }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(196,144,32,0.15)", display: "flex", alignItems: "center", justifyContent: "center", color: "#C49020", flexShrink: 0, border: "1px solid rgba(196,144,32,0.2)" }}>
+                  {f.icon}
                 </div>
                 <div>
-                  <p className="text-white text-[13px] font-semibold">{label}</p>
-                  <p className="text-white/40 text-xs">{desc}</p>
+                  <p style={{ color: "rgba(255,255,255,0.85)", fontWeight: 600, fontSize: 14, marginBottom: 2 }}>{f.title}</p>
+                  <p style={{ color: "rgba(255,255,255,0.38)", fontSize: 13, lineHeight: 1.5 }}>{f.desc}</p>
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        <p className="relative z-10 text-white/25 text-xs mt-8">
-          Secured by Microsoft Entra ID · Azure AD SSO · Device Code Flow
+        <p style={{ color: "rgba(255,255,255,0.22)", fontSize: 12, position: "relative" }}>
+          © 2026 National Group India · All rights reserved
         </p>
       </div>
 
-      {/* Right panel */}
-      <div className="flex-1 flex items-center justify-center px-6 py-12">
-        <div className="w-full max-w-sm">
-          {/* Mobile logo */}
-          <div className="flex items-center gap-3 mb-8 lg:hidden">
-            <div className="w-9 h-9 rounded-xl bg-azure-600 flex items-center justify-center">
-              <Shield className="w-4 h-4 text-white" />
-            </div>
-            <div>
-              <p className="font-bold text-base" style={{ color: "var(--text-primary)" }}>IT Support Hub</p>
-              <p className="text-xs" style={{ color: "var(--text-muted)" }}>National Group India</p>
-            </div>
+      {/* ── Right Auth Panel ── */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "32px 24px", background: "var(--page-bg)" }}>
+        <div className="flex lg:hidden" style={{ alignItems: "center", gap: 10, marginBottom: 40 }}>
+          <NGILogo size={36} />
+          <div>
+            <p style={{ fontWeight: 700, fontSize: 16, color: "var(--text-1)" }}>IT Support Hub</p>
+            <p style={{ color: "var(--text-3)", fontSize: 11 }}>National Group India</p>
           </div>
+        </div>
 
-          <h1 className="text-2xl font-bold mb-1" style={{ color: "var(--text-primary)" }}>Sign in</h1>
-          <p className="text-sm mb-6" style={{ color: "var(--text-secondary)" }}>
-            Use your <strong>@nationalgroupindia.com</strong> Microsoft account.
-          </p>
+        <div className="anim-fade-up" style={{ width: "100%", maxWidth: 400 }}>
+          <div style={{ background: "var(--surface)", borderRadius: 24, padding: "40px 36px", boxShadow: "var(--sh-xl)", border: "1px solid var(--border-1)" }}>
+            <div style={{ marginBottom: 32 }}>
+              <h2 style={{ fontSize: 24, fontWeight: 800, color: "var(--text-1)", marginBottom: 8, letterSpacing: "-0.02em" }}>Welcome back</h2>
+              <p style={{ color: "var(--text-2)", fontSize: 14, lineHeight: 1.5 }}>
+                Sign in with your National Group India Microsoft account to continue.
+              </p>
+            </div>
 
-          {/* Tab toggle */}
-          <div className="flex rounded-xl overflow-hidden border mb-5" style={{ borderColor: "var(--border)" }}>
-            {(["sso", "device"] as const).map((t) => (
-              <button
-                key={t}
-                onClick={() => setTab(t)}
-                className="flex-1 py-2 text-[13px] font-medium transition-colors"
-                style={{
-                  background: tab === t ? "#0078D4" : "var(--bg-card)",
-                  color:      tab === t ? "#fff"    : "var(--text-secondary)",
-                }}
-              >
-                {t === "sso" ? "SSO / Browser" : "Device Code / CLI"}
-              </button>
-            ))}
-          </div>
+            <button onClick={handleMicrosoft} disabled={loading}
+              style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 12, padding: "15px 24px", background: "#0078D4", color: "#fff", border: "none", borderRadius: 12, fontSize: 15, fontWeight: 600, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1, transition: "all 0.18s ease", boxShadow: "0 2px 12px rgba(0,120,212,0.28)", marginBottom: 16 }}>
+              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <MicrosoftIcon />}
+              {loading ? "Signing in…" : "Sign in with Microsoft"}
+            </button>
 
-          {/* SSO tab */}
-          {tab === "sso" && (
-            <>
-              <button
-                onClick={handleMicrosoftLogin}
-                disabled={loading}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border font-medium text-sm transition-all hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
-                style={{ border: "1px solid var(--border-strong)", background: "var(--bg-card)", color: "var(--text-primary)" }}
-              >
-                <svg width="18" height="18" viewBox="0 0 21 21" fill="none" className="flex-shrink-0">
-                  <rect x="1" y="1" width="9" height="9" fill="#F25022" />
-                  <rect x="11" y="1" width="9" height="9" fill="#7FBA00" />
-                  <rect x="1" y="11" width="9" height="9" fill="#00A4EF" />
-                  <rect x="11" y="11" width="9" height="9" fill="#FFB900" />
-                </svg>
-                <span className="flex-1 text-left">Continue with Microsoft</span>
-                <ChevronRight className="w-4 h-4 opacity-40" />
-              </button>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "20px 0" }}>
+              <div style={{ flex: 1, height: 1, background: "var(--border-1)" }} />
+              <span style={{ color: "var(--text-3)", fontSize: 12 }}>or</span>
+              <div style={{ flex: 1, height: 1, background: "var(--border-1)" }} />
+            </div>
 
-              {isDemoMode && (
-                <div className="mt-5">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="flex-1 h-px" style={{ background: "var(--border)" }} />
-                    <span className="text-xs" style={{ color: "var(--text-muted)" }}>Demo mode</span>
-                    <div className="flex-1 h-px" style={{ background: "var(--border)" }} />
+            <button onClick={() => { setShowDevCode(v => !v); if (!showDevCode) { setDevStep("init"); setDevError(""); }}}
+              style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", background: "var(--surface-2)", border: "1px solid var(--border-2)", borderRadius: 8, cursor: "pointer", color: "var(--text-2)", fontSize: 13, fontWeight: 500 }}>
+              <span>Admin / Device Code sign-in</span>
+              {showDevCode ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+
+            {showDevCode && (
+              <div className="anim-scale" style={{ marginTop: 12, padding: "20px", background: "var(--surface-2)", borderRadius: 8, border: "1px solid var(--border-2)" }}>
+                {devStep === "init" && (
+                  <>
+                    <p style={{ color: "var(--text-2)", fontSize: 13, marginBottom: 16, lineHeight: 1.5 }}>
+                      For devices without a browser or for elevated admin access. You&apos;ll get a code to enter at Microsoft&apos;s device login page.
+                    </p>
+                    <button onClick={startDeviceCode} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", padding: "10px", background: "var(--surface)", border: "1px solid var(--border-2)", borderRadius: 8, cursor: "pointer", color: "var(--text-1)", fontSize: 13, fontWeight: 500 }}>
+                      Start Device Code Flow
+                    </button>
+                  </>
+                )}
+                {devStep === "polling" && deviceCode && (
+                  <div style={{ textAlign: "center" }}>
+                    <Loader2 className="w-6 h-6 animate-spin mx-auto" style={{ color: "#C49020", marginBottom: 12 }} />
+                    <p style={{ color: "var(--text-2)", fontSize: 13, marginBottom: 16 }}>
+                      Go to <strong style={{ color: "var(--text-1)" }}>{deviceUrl}</strong> and enter:
+                    </p>
+                    <div style={{ position: "relative", display: "inline-block", marginBottom: 12 }}>
+                      <div style={{ background: "#0F1D2E", color: "#fff", borderRadius: 10, padding: "12px 28px", fontFamily: "monospace", fontSize: 30, fontWeight: 700, letterSpacing: "0.2em" }}>
+                        {showCode ? deviceCode : "••• •••"}
+                      </div>
+                      <button onClick={() => setShowCode(v => !v)} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.5)" }}>
+                        {showCode ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    <p style={{ color: "var(--text-3)", fontSize: 12 }}>Waiting for authentication…</p>
                   </div>
-                  <div className="flex gap-2">
-                    <select
-                      value={demoRole}
-                      onChange={(e) => setDemoRole(e.target.value)}
-                      className="flex-1 px-3 py-2 rounded-lg border text-sm outline-none"
-                      style={{ border: "1px solid var(--border)", background: "var(--bg-card)", color: "var(--text-primary)" }}
-                    >
-                      <option value="admin">Admin – Sarah Mitchell</option>
-                      <option value="engineer">Engineer – James Chen</option>
-                      <option value="manager">Manager – Emma Thompson</option>
-                      <option value="employee">Employee – David Park</option>
-                    </select>
-                    <button
-                      onClick={handleDemoLogin}
-                      disabled={loading}
-                      className="px-4 py-2 rounded-lg text-white text-sm font-medium bg-azure-600 hover:bg-azure-700 transition-colors disabled:opacity-60"
-                    >
-                      Go
+                )}
+                {devStep === "error" && (
+                  <div style={{ textAlign: "center" }}>
+                    <p style={{ color: "#DC2626", fontSize: 13, marginBottom: 12 }}>{devError}</p>
+                    <button onClick={() => setDevStep("init")} style={{ padding: "8px 16px", background: "var(--surface)", border: "1px solid var(--border-2)", borderRadius: 8, cursor: "pointer", color: "var(--text-1)", fontSize: 13 }}>
+                      Try again
                     </button>
                   </div>
-                </div>
-              )}
-            </>
-          )}
-
-          {/* Device code tab */}
-          {tab === "device" && (
-            <>
-              <div className="mb-4 px-4 py-3 rounded-xl text-[12px] leading-relaxed" style={{ background: "var(--bg-base)", border: "1px solid var(--border)" }}>
-                <p className="font-semibold mb-1" style={{ color: "var(--text-primary)" }}>When to use Device Code sign-in:</p>
-                <ul className="space-y-1 list-disc list-inside" style={{ color: "var(--text-secondary)" }}>
-                  <li>Shared kiosk or TV displays with no keyboard</li>
-                  <li>Admin CLI / Azure CLI (<code className="font-mono text-[11px]">az login</code>) sessions</li>
-                  <li>Devices where opening a browser isn&apos;t possible</li>
-                  <li>Service account or elevated admin authentication</li>
-                </ul>
+                )}
               </div>
-              <DeviceCodePanel onSuccess={handleSuccess} />
-            </>
-          )}
+            )}
 
-          <p className="mt-8 text-xs text-center" style={{ color: "var(--text-muted)" }}>
-            By signing in you agree to National Group India&apos;s IT Acceptable Use Policy.
-            <br />Admin: bala@nationalgroupindia.com · Session expires after 8 hours.
+            <p style={{ textAlign: "center", color: "var(--text-3)", fontSize: 12, marginTop: 24 }}>
+              Having trouble?{" "}
+              <a href="mailto:it-support@nationalgroupindia.com" style={{ color: "#C49020", textDecoration: "none", fontWeight: 500 }}>
+                Contact IT Support
+              </a>
+            </p>
+          </div>
+
+          <p style={{ textAlign: "center", color: "var(--text-3)", fontSize: 12, marginTop: 24 }}>
+            By signing in you agree to NGI&apos;s{" "}
+            <a href="#" style={{ color: "var(--text-2)", textDecoration: "none" }}>Acceptable Use Policy</a>
           </p>
         </div>
       </div>
