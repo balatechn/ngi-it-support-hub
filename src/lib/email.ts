@@ -1,17 +1,40 @@
-import nodemailer from "nodemailer";
+const SENDER = "connect@nationalgroupindia.com";
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST ?? "smtp.office365.com",
-  port: parseInt(process.env.SMTP_PORT ?? "587"),
-  secure: false,
-  auth: {
-    user: process.env.SMTP_USER ?? "connect@nationalgroupindia.com",
-    pass: process.env.SMTP_PASS,
-  },
-  tls: { ciphers: "SSLv3" },
-});
+// Cache token to avoid fetching one per email
+let _token = "";
+let _tokenExpiry = 0;
 
-const FROM = `"NGI IT Support" <${process.env.SMTP_USER ?? "connect@nationalgroupindia.com"}>`;
+async function getGraphToken(): Promise<string> {
+  if (_token && Date.now() < _tokenExpiry - 60_000) return _token;
+
+  const tenantId     = process.env.AZURE_AD_TENANT_ID!;
+  const clientId     = process.env.AZURE_AD_CLIENT_ID!;
+  const clientSecret = process.env.AZURE_AD_CLIENT_SECRET!;
+
+  const res = await fetch(
+    `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        grant_type:    "client_credentials",
+        client_id:     clientId,
+        client_secret: clientSecret,
+        scope:         "https://graph.microsoft.com/.default",
+      }),
+    }
+  );
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Graph token fetch failed: ${res.status} ${text}`);
+  }
+
+  const data = await res.json() as { access_token: string; expires_in: number };
+  _token       = data.access_token;
+  _tokenExpiry = Date.now() + data.expires_in * 1000;
+  return _token;
+}
 
 export async function sendEmail({
   to,
@@ -22,12 +45,35 @@ export async function sendEmail({
   subject: string;
   html: string;
 }) {
-  await transporter.sendMail({
-    from: FROM,
-    to: Array.isArray(to) ? to.join(", ") : to,
-    subject,
-    html,
-  });
+  const token     = await getGraphToken();
+  const toList    = (Array.isArray(to) ? to : [to]).map(addr => ({
+    emailAddress: { address: addr },
+  }));
+
+  const res = await fetch(
+    `https://graph.microsoft.com/v1.0/users/${SENDER}/sendMail`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        message: {
+          subject,
+          body: { contentType: "HTML", content: html },
+          from: { emailAddress: { address: SENDER, name: "NGI IT Support" } },
+          toRecipients: toList,
+        },
+        saveToSentItems: false,
+      }),
+    }
+  );
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Graph sendMail failed: ${res.status} ${text}`);
+  }
 }
 
 export function ticketCreatedHtml(ticket: {
