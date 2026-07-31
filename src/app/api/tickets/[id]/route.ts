@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { ticketStore } from "@/lib/ticketStore";
+import { ticketStore, updateTicket } from "@/lib/ticketStore";
 import { sendEmail, ticketStatusUpdateHtml } from "@/lib/email";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -22,8 +22,8 @@ export async function PATCH(
     const newStatus = body.status ?? ticket.status;
     const note: string | undefined = body.note;
 
-    const updated = { ...ticket, status: newStatus, updatedAt: new Date().toISOString() };
-    ticketStore.set(params.id, updated);
+    const updated = updateTicket(params.id, { status: newStatus });
+    if (!updated) return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
 
     // Email the ticket raiser when status changes
     if (oldStatus !== newStatus && ticket.email) {

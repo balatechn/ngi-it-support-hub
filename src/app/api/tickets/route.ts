@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { ticketStore, genTicketId } from "@/lib/ticketStore";
+import { ticketStore, saveTicket, genTicketId } from "@/lib/ticketStore";
 import { sendEmail, ticketCreatedHtml } from "@/lib/email";
 
 const ADMIN_EMAIL = "bala@nationalgroupindia.com";
@@ -26,7 +26,7 @@ export async function POST(req: Request) {
       updatedAt:   now,
     };
 
-    ticketStore.set(id, ticket);
+    saveTicket(ticket);
 
     // Send confirmation emails (non-blocking — don't fail the request if email fails)
     const html = ticketCreatedHtml(ticket);
