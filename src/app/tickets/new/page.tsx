@@ -61,7 +61,7 @@ function genTicketId() { return `NGI-2026-${String(Math.floor(100000 + Math.rand
 function fmt(d: Date) { return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); }
 
 export default function NewTicketPage() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const [messages, setMessages] = useState<Message[]>([]);
   const [step, setStep] = useState<Step>("intro");
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -74,6 +74,7 @@ export default function NewTicketPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const startedRef = useRef(false);
 
   const addMsg = useCallback((msg: Omit<Message, "id" | "time">) => {
     setMessages(prev => [...prev, { ...msg, id: genId(), time: new Date() }]);
@@ -93,19 +94,29 @@ export default function NewTicketPage() {
     });
   }, [addMsg]);
 
-  // Kick off intro
+  // Kick off intro — wait for session, skip name step if already known
   useEffect(() => {
-    const name = session?.user?.name?.split(" ")[0] ?? "there";
+    if (status === "loading" || startedRef.current) return;
+    startedRef.current = true;
+    const sessionName = session?.user?.name ?? "";
+    const firstName = sessionName.split(" ")[0] || "there";
     const seq = async () => {
       await new Promise(r => setTimeout(r, 400));
-      await botSay(`Hi ${name}! 👋 I'm the NGI IT Support Assistant. I'll help you raise a support ticket in just a few steps.`);
-      await botSay("What's your full name?");
-      setStep("name");
-      setProgress(10);
+      await botSay(`Hi ${firstName}! 👋 I'm the NGI IT Support Assistant. I'll help you raise a support ticket in just a few steps.`);
+      if (sessionName) {
+        setAnswers({ name: sessionName });
+        setStep("department");
+        setProgress(22);
+        await botSay("Which department do you work in?", { type: "options", options: DEPARTMENTS });
+      } else {
+        await botSay("What's your full name?");
+        setStep("name");
+        setProgress(10);
+      }
     };
     seq();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [status]);
 
   const next = useCallback(async (val: string) => {
     const current = step;
