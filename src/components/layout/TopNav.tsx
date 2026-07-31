@@ -9,15 +9,12 @@ import {
 import { cn } from "@/lib/utils";
 
 const NAV_MAIN = [
-  { href: "/dashboard",      label: "Dashboard" },
-  { href: "/tickets",        label: "My Tickets" },
-  { href: "/chat",           label: "AI Assistant" },
-  { href: "/knowledge-base", label: "Knowledge Base" },
+  { href: "/dashboard", label: "Dashboard" },
+  { href: "/tickets",   label: "My Tickets" },
 ];
 
 const NAV_ADMIN = [
   { href: "/admin/tickets", label: "Ticket Inbox" },
-  { href: "/analytics",     label: "Analytics" },
   { href: "/team",          label: "Team" },
 ];
 
@@ -141,18 +138,6 @@ export function TopNav() {
               </Link>
             );
           })}
-
-          {/* New Request accent link */}
-          <Link href="/tickets/new" style={{
-            ...tabStyle(isActive("/tickets/new")),
-            color: isActive("/tickets/new") ? "#C49020" : "rgba(196,144,32,0.8)",
-            fontWeight: 600,
-          }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "#C49020"; (e.currentTarget as HTMLElement).style.background = "rgba(196,144,32,0.08)"; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = isActive("/tickets/new") ? "#C49020" : "rgba(196,144,32,0.8)"; (e.currentTarget as HTMLElement).style.background = "transparent"; }}
-          >
-            + New Request
-          </Link>
 
           {isAdmin && (
             <>
@@ -329,9 +314,6 @@ export function TopNav() {
               </Link>
             );
           })}
-          <Link href="/tickets/new" style={{ padding: "12px 20px", fontSize: 13, fontWeight: 600, color: "#C49020", textDecoration: "none", display: "block" }}>
-            + New Request
-          </Link>
           <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", padding: "12px 20px", display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ width: 28, height: 28, borderRadius: "50%", background: avColor(user?.name ?? "U"), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "#FFF", flexShrink: 0 }}>
               {initials(user?.name ?? "U")}
