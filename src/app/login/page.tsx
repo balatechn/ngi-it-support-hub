@@ -118,25 +118,11 @@ export default function LoginPage() {
 
         <div style={{ position: "relative" }}>
           <h1 style={{ fontSize: 38, fontWeight: 800, color: "#FFFFFF", lineHeight: 1.2, marginBottom: 16, letterSpacing: "-0.02em" }}>
-            Enterprise IT<br />support,{" "}
-            <span style={{ color: "#C49020" }}>reimagined.</span>
+            Enterprise IT<br />support.
           </h1>
-          <p style={{ color: "rgba(255,255,255,0.50)", fontSize: 15, lineHeight: 1.7, marginBottom: 40, maxWidth: 360 }}>
+          <p style={{ color: "rgba(255,255,255,0.50)", fontSize: 15, lineHeight: 1.7, maxWidth: 360 }}>
             Raise tickets, track progress, and get AI-powered answers — all in one intelligent platform built for National Group India.
           </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-            {FEATURES.map((f, i) => (
-              <div key={i} className="anim-fade-up" style={{ display: "flex", alignItems: "flex-start", gap: 14, animationDelay: `${0.1 + i * 0.08}s` }}>
-                <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(196,144,32,0.15)", display: "flex", alignItems: "center", justifyContent: "center", color: "#C49020", flexShrink: 0, border: "1px solid rgba(196,144,32,0.2)" }}>
-                  {f.icon}
-                </div>
-                <div>
-                  <p style={{ color: "rgba(255,255,255,0.85)", fontWeight: 600, fontSize: 14, marginBottom: 2 }}>{f.title}</p>
-                  <p style={{ color: "rgba(255,255,255,0.38)", fontSize: 13, lineHeight: 1.5 }}>{f.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
 
         <p style={{ color: "rgba(255,255,255,0.22)", fontSize: 12, position: "relative" }}>
