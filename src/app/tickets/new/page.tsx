@@ -5,7 +5,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import {
   Send, Paperclip, CheckCircle2, Loader2, X, Copy, Check,
   Wifi, Monitor, Printer, Mail, ShieldAlert, HelpCircle,
-  Cpu, Server, Clock, AlertTriangle, ChevronDown,
+  Cpu, Server, Clock, AlertTriangle, ChevronDown, Wrench, ClipboardList,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -21,9 +21,14 @@ interface Message {
 interface Option { label: string; value: string; icon?: React.ReactNode; desc?: string; color?: string }
 
 // ── Steps ────────────────────────────────────────────────────
-type Step = "intro"|"name"|"department"|"location"|"contact"|"category"|"priority"|"description"|"attachment"|"done";
+type Step = "intro"|"name"|"department"|"location"|"contact"|"ticketType"|"category"|"priority"|"description"|"attachment"|"done";
 
-const STEPS: Step[] = ["intro","name","department","location","contact","category","priority","description","attachment","done"];
+const STEPS: Step[] = ["intro","name","department","location","contact","ticketType","category","priority","description","attachment","done"];
+
+const TICKET_TYPES: Option[] = [
+  { label: "Issue", value: "issue", icon: <Wrench className="w-5 h-5" />, desc: "Something is broken or not working", color: "#EF4444" },
+  { label: "Request", value: "request", icon: <ClipboardList className="w-5 h-5" />, desc: "I need something new or a change", color: "#3B82F6" },
+];
 
 const DEPARTMENTS: Option[] = [
   { label: "Finance", value: "Finance" }, { label: "HR", value: "HR" },
@@ -154,9 +159,22 @@ export default function NewTicketPage() {
     } else if (current === "contact") {
       const newAnswers = { ...answers, contact: val };
       setAnswers(newAnswers);
+      setStep("ticketType");
+      setProgress(52);
+      await botSay("Is this an Issue or a Request?", {
+        type: "options",
+        options: TICKET_TYPES,
+      });
+
+    } else if (current === "ticketType") {
+      const newAnswers = { ...answers, ticketType: val };
+      setAnswers(newAnswers);
       setStep("category");
-      setProgress(56);
-      await botSay("What type of issue are you experiencing?", {
+      setProgress(62);
+      const q = val.toLowerCase() === "issue"
+        ? "What type of issue are you experiencing?"
+        : "What category does your request fall under?";
+      await botSay(q, {
         type: "options",
         options: CATEGORIES,
       });
@@ -165,7 +183,7 @@ export default function NewTicketPage() {
       const newAnswers = { ...answers, category: val };
       setAnswers(newAnswers);
       setStep("priority");
-      setProgress(66);
+      setProgress(72);
       await botSay("How urgent is this?", {
         type: "options",
         options: PRIORITIES,
@@ -175,14 +193,14 @@ export default function NewTicketPage() {
       const newAnswers = { ...answers, priority: val };
       setAnswers(newAnswers);
       setStep("description");
-      setProgress(76);
+      setProgress(82);
       await botSay("Please describe the issue in as much detail as possible — the more you share, the faster we can resolve it.");
 
     } else if (current === "description") {
       const newAnswers = { ...answers, description: val };
       setAnswers(newAnswers);
       setStep("attachment");
-      setProgress(88);
+      setProgress(92);
       await botSay("Would you like to attach a screenshot or file? (optional — tap the 📎 button or just type 'skip')");
 
     } else if (current === "attachment") {
@@ -290,6 +308,7 @@ export default function NewTicketPage() {
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 14 }}>
                       {[
                         { l: "Name", v: answers.name },
+                        { l: "Type", v: answers.ticketType ? answers.ticketType.charAt(0).toUpperCase() + answers.ticketType.slice(1) : "" },
                         { l: "Department", v: answers.department },
                         { l: "Location", v: answers.location },
                         { l: "Category", v: answers.category },
@@ -390,7 +409,7 @@ export default function NewTicketPage() {
                 <div style={{ flex: 1, position: "relative" }}>
                   <textarea ref={inputRef} value={draft} onChange={e => setDraft(e.target.value)} onKeyDown={handleKey}
                     placeholder={step === "description" ? "Describe the issue in detail…" : "Type your reply…"}
-                    disabled={isTyping || step === "done" || (step !== "name" && step !== "contact" && step !== "description" && step !== "intro")}
+                    disabled={isTyping || step === "done" || (step !== "name" && step !== "contact" && step !== "description" && step !== "intro" && step !== "ticketType")}
                     rows={1}
                     style={{ width: "100%", padding: "11px 48px 11px 16px", background: "var(--surface)", border: "1.5px solid var(--border-2)", borderRadius: 12, fontSize: 14, color: "var(--text-1)", outline: "none", resize: "none", maxHeight: 120, overflowY: "auto", lineHeight: 1.5, transition: "border-color 0.15s", fontFamily: "inherit" }}
                     onFocus={e => { e.target.style.borderColor = "var(--gold)"; }}
