@@ -1,5 +1,7 @@
 "use client";
+import { useEffect } from "react";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { mockTickets, mockDashboardStats, mockChartData, mockKBArticles } from "@/lib/mockData";
 import Link from "next/link";
@@ -46,6 +48,15 @@ const QUICK_ACTIONS = [
 
 export default function DashboardPage() {
   const { data: session } = useSession();
+  const router = useRouter();
+  const isAdmin = (session?.user as { role?: string } | undefined)?.role === "admin";
+
+  useEffect(() => {
+    if (!isAdmin) router.replace("/tickets/new");
+  }, [isAdmin, router]);
+
+  if (!isAdmin) return null;
+
   const name = session?.user?.name?.split(" ")[0] ?? "there";
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";

@@ -106,7 +106,7 @@ export function TopNav() {
         zIndex: 100,
       }}>
         {/* Logo */}
-        <Link href="/dashboard" style={{
+        <Link href="/tickets/new" style={{
           display: "flex", alignItems: "center", gap: 9,
           padding: "0 18px 0 16px", height: "100%",
           borderRight: "1px solid rgba(255,255,255,0.07)",
