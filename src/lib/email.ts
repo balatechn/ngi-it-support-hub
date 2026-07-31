@@ -128,9 +128,15 @@ export function ticketCreatedHtml(ticket: {
       </p>
     </div>
 
-    <p style="color:#8A9BB0;font-size:12px;margin:0;">
+    <p style="color:#8A9BB0;font-size:12px;margin:0 0 24px;">
       If you have additional details to add, please reply to this email quoting your Ticket ID.
     </p>
+
+    <div style="border-top:1px solid #e8edf3;padding-top:18px;margin-top:4px;">
+      <p style="color:#4A5D72;font-size:13px;margin:0 0 2px;">Regards,</p>
+      <p style="color:#0F1D2E;font-size:14px;font-weight:600;margin:0 0 6px;">Balasubramanian</p>
+      <p style="color:#8A9BB0;font-size:11px;margin:0;">IT Support · National Group India</p>
+    </div>
   </div>
   <p style="text-align:center;color:#aaa;font-size:11px;margin-top:16px;">© 2026 National Group India · IT Support Hub</p>
 </div>`;
@@ -184,7 +190,13 @@ export function ticketStatusUpdateHtml(ticket: {
     </div>` : ""}
 
     <p style="color:#4A5D72;font-size:13px;margin:0 0 4px;">Updated by: <strong>${ticket.updatedBy}</strong></p>
-    <p style="color:#8A9BB0;font-size:12px;margin:0;">Category: ${ticket.category}</p>
+    <p style="color:#8A9BB0;font-size:12px;margin:0 0 24px;">Category: ${ticket.category}</p>
+
+    <div style="border-top:1px solid #e8edf3;padding-top:18px;margin-top:4px;">
+      <p style="color:#4A5D72;font-size:13px;margin:0 0 2px;">Regards,</p>
+      <p style="color:#0F1D2E;font-size:14px;font-weight:600;margin:0 0 6px;">Balasubramanian</p>
+      <p style="color:#8A9BB0;font-size:11px;margin:0;">IT Support · National Group India</p>
+    </div>
   </div>
   <p style="text-align:center;color:#aaa;font-size:11px;margin-top:16px;">© 2026 National Group India · IT Support Hub</p>
 </div>`;
