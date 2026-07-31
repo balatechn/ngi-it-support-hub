@@ -65,7 +65,6 @@ const PRIORITIES: Option[] = [
 ];
 
 function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
-function genTicketId() { return `NGI-2026-${String(Math.floor(100000 + Math.random() * 900000)).slice(0, 6)}`; }
 function fmt(d: Date) { return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); }
 
 export default function NewTicketPage() {
@@ -222,11 +221,30 @@ export default function NewTicketPage() {
       await botSay("Would you like to attach a screenshot or file? (optional — tap the 📎 button or just type 'skip')");
 
     } else if (current === "attachment") {
-      const id = genTicketId();
-      setTicketId(id);
-      const allAnswers = { ...answers };
       setProgress(100);
-      await botSay(`🎉 Your ticket has been created!`);
+      const allAnswers = { ...answers };
+
+      // Submit ticket to API + trigger emails
+      let id = `NGI-${String(Math.floor(10000 + Math.random() * 90000))}`;
+      try {
+        const res = await fetch("/api/tickets", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...allAnswers,
+            email: session?.user?.email ?? "",
+          }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          id = data.id ?? id;
+        }
+      } catch (e) {
+        console.error("Ticket submit error:", e);
+      }
+
+      setTicketId(id);
+      await botSay(`🎉 Your ticket has been created! A confirmation email has been sent to you.`);
       addMsg({
         role: "bot",
         content: id,

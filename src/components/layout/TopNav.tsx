@@ -16,9 +16,9 @@ const NAV_MAIN = [
 ];
 
 const NAV_ADMIN = [
-  { href: "/admin",     label: "Admin" },
-  { href: "/analytics", label: "Analytics" },
-  { href: "/team",      label: "Team" },
+  { href: "/admin/tickets", label: "Ticket Inbox" },
+  { href: "/analytics",     label: "Analytics" },
+  { href: "/team",          label: "Team" },
 ];
 
 const MOCK_NOTIFS = [
