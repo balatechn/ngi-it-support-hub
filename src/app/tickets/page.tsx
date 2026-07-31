@@ -1,5 +1,6 @@
 "use client";
 import { useState, useMemo } from "react";
+import { useSession } from "next-auth/react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { mockTickets } from "@/lib/mockData";
 import type { TicketStatus, TicketPriority } from "@/lib/types";
@@ -29,6 +30,9 @@ const STATUS_TABS: Array<{ value: TicketStatus | "all"; label: string }> = [
 type SortField = "id" | "title" | "priority" | "status" | "updatedAt";
 
 export default function TicketsPage() {
+  const { data: session } = useSession();
+  const userEmail = session?.user?.email ?? "";
+
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<TicketStatus | "all">("all");
   const [priorityFilter, setPriorityFilter] = useState<TicketPriority | "all">("all");
@@ -36,14 +40,18 @@ export default function TicketsPage() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [showFilters, setShowFilters] = useState(false);
 
+  const myTickets = useMemo(() =>
+    mockTickets.filter(t => t.requesterEmail === userEmail),
+  [userEmail]);
+
   const counts = useMemo(() => {
-    const c: Record<string, number> = { all: mockTickets.length };
-    mockTickets.forEach(t => { c[t.status] = (c[t.status] ?? 0) + 1; });
+    const c: Record<string, number> = { all: myTickets.length };
+    myTickets.forEach(t => { c[t.status] = (c[t.status] ?? 0) + 1; });
     return c;
-  }, []);
+  }, [myTickets]);
 
   const tickets = useMemo(() => {
-    let list = [...mockTickets];
+    let list = [...myTickets];
     if (search) {
       const q = search.toLowerCase();
       list = list.filter(t =>
@@ -86,7 +94,7 @@ export default function TicketsPage() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24, gap: 16, flexWrap: "wrap" }}>
           <div>
             <h2 style={{ fontSize: 22, fontWeight: 800, color: "var(--text-1)", letterSpacing: "-0.02em", marginBottom: 4 }}>Support Tickets</h2>
-            <p style={{ color: "var(--text-2)", fontSize: 14 }}>{mockTickets.length} total tickets across all categories</p>
+            <p style={{ color: "var(--text-2)", fontSize: 14 }}>{myTickets.length} ticket{myTickets.length !== 1 ? "s" : ""} raised by you</p>
           </div>
           <Link href="/tickets/new"
             style={{ display: "flex", alignItems: "center", gap: 8, padding: "11px 20px", background: "var(--gold)", color: "#fff", borderRadius: 10, fontWeight: 600, fontSize: 14, textDecoration: "none", boxShadow: "0 2px 8px rgba(196,144,32,0.3)", flexShrink: 0 }}>
@@ -157,7 +165,11 @@ export default function TicketsPage() {
               </thead>
               <tbody>
                 {tickets.length === 0 ? (
-                  <tr><td colSpan={8} style={{ textAlign: "center", padding: 40, color: "var(--text-3)" }}>No tickets match your filters.</td></tr>
+                  <tr><td colSpan={8} style={{ textAlign: "center", padding: 48, color: "var(--text-3)" }}>
+                    {myTickets.length === 0
+                      ? <><p style={{ fontSize: 15, fontWeight: 600, color: "var(--text-2)", marginBottom: 8 }}>No tickets raised yet</p><p style={{ fontSize: 13 }}>Click <strong>+ New Request</strong> in the top bar to raise your first support ticket.</p></>
+                      : "No tickets match your filters."}
+                  </td></tr>
                 ) : tickets.map(t => (
                   <tr key={t.id} onClick={() => window.location.href = `/tickets/${t.id}`}>
                     <td>
@@ -197,7 +209,7 @@ export default function TicketsPage() {
             </table>
           </div>
           <div style={{ padding: "12px 20px", borderTop: "1px solid var(--border-1)", color: "var(--text-3)", fontSize: 13 }}>
-            Showing {tickets.length} of {mockTickets.length} tickets
+            Showing {tickets.length} of {myTickets.length} ticket{myTickets.length !== 1 ? "s" : ""}
           </div>
         </div>
       </div>
