@@ -76,6 +76,11 @@ export const authOptions: NextAuthOptions = {
         if (u.role)        token.role        = u.role;
         if (u.jobTitle)    token.jobTitle    = u.jobTitle;
       }
+      // Always grant admin to the known admin email, regardless of sign-in method
+      const ADMIN_EMAILS = ["bala@nationalgroupindia.com"];
+      if (token.email && ADMIN_EMAILS.includes(token.email as string)) {
+        token.role = "admin";
+      }
       return token;
     },
     async session({ session, token }) {
