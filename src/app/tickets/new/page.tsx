@@ -39,7 +39,7 @@ const DEPARTMENTS: Option[] = [
 
 const LOCATIONS: Option[] = [
   { label: "Bangalore HQ",    value: "Bangalore HQ" },
-  { label: "Shimoga",         value: "Shimoga" },
+  { label: "Shivamogga",      value: "Shivamogga" },
   { label: "Mangalore",       value: "Mangalore" },
   { label: "Hassan",          value: "Hassan" },
   { label: "Chikkamagaluru",  value: "Chikkamagaluru" },
