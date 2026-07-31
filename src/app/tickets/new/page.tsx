@@ -110,9 +110,9 @@ export default function NewTicketPage() {
       await botSay(`Hi ${firstName}! 👋 I'm the NGI IT Support Assistant. I'll help you raise a support ticket in just a few steps.`);
       if (sessionName) {
         setAnswers({ name: sessionName });
-        setStep("department");
+        setStep("location");
         setProgress(22);
-        await botSay("Which department do you work in?", { type: "options", options: DEPARTMENTS });
+        await botSay("Which office or location are you working from?", { type: "options", options: LOCATIONS });
       } else {
         await botSay("What's your full name?");
         setStep("name");
@@ -131,26 +131,26 @@ export default function NewTicketPage() {
     if (current === "name") {
       const newAnswers = { ...answers, name: val };
       setAnswers(newAnswers);
-      setStep("department");
+      setStep("location");
       setProgress(22);
       await botSay(`Nice to meet you, ${val}! 😊`);
-      await botSay("Which department do you work in?", {
-        type: "options",
-        options: DEPARTMENTS,
-      });
-
-    } else if (current === "department") {
-      const newAnswers = { ...answers, department: val };
-      setAnswers(newAnswers);
-      setStep("location");
-      setProgress(34);
-      await botSay("Got it! And which office or location are you working from?", {
+      await botSay("Which office or location are you working from?", {
         type: "options",
         options: LOCATIONS,
       });
 
     } else if (current === "location") {
       const newAnswers = { ...answers, location: val };
+      setAnswers(newAnswers);
+      setStep("department");
+      setProgress(34);
+      await botSay("Got it! Which department do you work in?", {
+        type: "options",
+        options: DEPARTMENTS,
+      });
+
+    } else if (current === "department") {
+      const newAnswers = { ...answers, department: val };
       setAnswers(newAnswers);
       setStep("contact");
       setProgress(46);
