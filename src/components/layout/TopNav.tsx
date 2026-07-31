@@ -10,12 +10,10 @@ import { cn } from "@/lib/utils";
 
 const NAV_MAIN = [
   { href: "/dashboard", label: "Dashboard" },
-  { href: "/tickets",   label: "My Tickets" },
 ];
 
 const NAV_ADMIN = [
   { href: "/admin/tickets", label: "Ticket Inbox" },
-  { href: "/team",          label: "Team" },
 ];
 
 const MOCK_NOTIFS = [
@@ -139,9 +137,21 @@ export function TopNav() {
             );
           })}
 
+          {/* New Request — gold accent tab, always visible */}
+          <Link href="/tickets/new" style={{
+            ...tabStyle(isActive("/tickets/new")),
+            color: isActive("/tickets/new") ? "#C49020" : "rgba(196,144,32,0.85)",
+            fontWeight: 600,
+          }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "#C49020"; (e.currentTarget as HTMLElement).style.background = "rgba(196,144,32,0.08)"; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = isActive("/tickets/new") ? "#C49020" : "rgba(196,144,32,0.85)"; (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+          >
+            + New Request
+          </Link>
+
           {isAdmin && (
             <>
-              <div style={{ width: 1, background: "rgba(255,255,255,0.1)", margin: "10px 4px", flexShrink: 0 }} />
+              <div style={{ width: 1, background: "rgba(255,255,255,0.1)", margin: "10px 8px", flexShrink: 0 }} />
               {NAV_ADMIN.map(({ href, label }) => {
                 const active = isActive(href);
                 return (
@@ -301,19 +311,14 @@ export function TopNav() {
       {/* Mobile dropdown */}
       {mobileOpen && (
         <div className="flex md:hidden flex-col" style={{ background: "#0F1D2E", borderBottom: "1px solid rgba(255,255,255,0.08)", zIndex: 99 }}>
-          {allNav.map(({ href, label }) => {
-            const active = isActive(href);
-            return (
-              <Link key={href} href={href} style={{
-                padding: "12px 20px", fontSize: 13, fontWeight: active ? 600 : 400,
-                color: active ? "#FFF" : "rgba(255,255,255,0.6)",
-                borderLeft: active ? "3px solid #C49020" : "3px solid transparent",
-                textDecoration: "none", display: "block",
-              }}>
-                {label}
-              </Link>
-            );
-          })}
+          {/* Dashboard */}
+          <Link href="/dashboard" style={{ padding: "12px 20px", fontSize: 13, fontWeight: isActive("/dashboard") ? 600 : 400, color: isActive("/dashboard") ? "#FFF" : "rgba(255,255,255,0.6)", borderLeft: isActive("/dashboard") ? "3px solid #C49020" : "3px solid transparent", textDecoration: "none", display: "block" }}>Dashboard</Link>
+          {/* New Request */}
+          <Link href="/tickets/new" style={{ padding: "12px 20px", fontSize: 13, fontWeight: 600, color: "#C49020", borderLeft: isActive("/tickets/new") ? "3px solid #C49020" : "3px solid transparent", textDecoration: "none", display: "block" }}>+ New Request</Link>
+          {/* Admin: Ticket Inbox */}
+          {isAdmin && (
+            <Link href="/admin/tickets" style={{ padding: "12px 20px", fontSize: 13, fontWeight: isActive("/admin/tickets") ? 600 : 400, color: isActive("/admin/tickets") ? "#FFF" : "rgba(255,255,255,0.6)", borderLeft: isActive("/admin/tickets") ? "3px solid #C49020" : "3px solid transparent", textDecoration: "none", display: "block" }}>Ticket Inbox</Link>
+          )}
           <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", padding: "12px 20px", display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ width: 28, height: 28, borderRadius: "50%", background: avColor(user?.name ?? "U"), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "#FFF", flexShrink: 0 }}>
               {initials(user?.name ?? "U")}
