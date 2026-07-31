@@ -46,7 +46,7 @@ export default function LoginPage() {
   const handleMicrosoft = async () => {
     setLoading(true);
     try {
-      await signIn("azure-ad", { callbackUrl: "/dashboard" });
+      await signIn("azure-ad", { callbackUrl: "/tickets/new" });
     } catch {
       setLoading(false);
     }
@@ -79,7 +79,7 @@ export default function LoginPage() {
               userId: meData.id,
               jobTitle: meData.jobTitle,
             });
-            if (result?.ok) router.replace("/dashboard");
+            if (result?.ok) router.replace("/tickets/new");
             else { clearInterval(interval); setDevError("Authentication failed. Please try again."); setDevStep("error"); }
           }
         } catch { /* still polling */ }
