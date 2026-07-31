@@ -9,8 +9,7 @@ import {
 import { cn } from "@/lib/utils";
 
 const NAV_MAIN = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/tickets",   label: "My Requests" },
+  { href: "/tickets", label: "My Requests" },
 ];
 
 const NAV_ADMIN = [
@@ -312,8 +311,6 @@ export function TopNav() {
       {/* Mobile dropdown */}
       {mobileOpen && (
         <div className="flex md:hidden flex-col" style={{ background: "#0F1D2E", borderBottom: "1px solid rgba(255,255,255,0.08)", zIndex: 99 }}>
-          {/* Dashboard */}
-          <Link href="/dashboard" style={{ padding: "12px 20px", fontSize: 13, fontWeight: isActive("/dashboard") ? 600 : 400, color: isActive("/dashboard") ? "#FFF" : "rgba(255,255,255,0.6)", borderLeft: isActive("/dashboard") ? "3px solid #C49020" : "3px solid transparent", textDecoration: "none", display: "block" }}>Dashboard</Link>
           {/* My Requests */}
           <Link href="/tickets" style={{ padding: "12px 20px", fontSize: 13, fontWeight: isActive("/tickets") ? 600 : 400, color: isActive("/tickets") ? "#FFF" : "rgba(255,255,255,0.6)", borderLeft: isActive("/tickets") ? "3px solid #C49020" : "3px solid transparent", textDecoration: "none", display: "block" }}>My Requests</Link>
           {/* New Request */}
