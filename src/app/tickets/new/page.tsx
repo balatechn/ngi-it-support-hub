@@ -21,9 +21,9 @@ interface Message {
 interface Option { label: string; value: string; icon?: React.ReactNode; desc?: string; color?: string }
 
 // ── Steps ────────────────────────────────────────────────────
-type Step = "intro"|"name"|"department"|"location"|"contact"|"ticketType"|"category"|"priority"|"description"|"attachment"|"done";
+type Step = "intro"|"name"|"location"|"locationOther"|"department"|"contact"|"ticketType"|"category"|"priority"|"description"|"attachment"|"done";
 
-const STEPS: Step[] = ["intro","name","department","location","contact","ticketType","category","priority","description","attachment","done"];
+const STEPS: Step[] = ["intro","name","location","locationOther","department","contact","ticketType","category","priority","description","attachment","done"];
 
 const TICKET_TYPES: Option[] = [
   { label: "Issue", value: "issue", icon: <Wrench className="w-5 h-5" />, desc: "Something is broken or not working", color: "#EF4444" },
@@ -38,9 +38,12 @@ const DEPARTMENTS: Option[] = [
 ];
 
 const LOCATIONS: Option[] = [
-  { label: "London HQ", value: "London HQ" }, { label: "Manchester", value: "Manchester" },
-  { label: "Dubai Office", value: "Dubai Office" }, { label: "Singapore", value: "Singapore" },
-  { label: "Remote / WFH", value: "Remote" },
+  { label: "Bangalore HQ",    value: "Bangalore HQ" },
+  { label: "Shimoga",         value: "Shimoga" },
+  { label: "Mangalore",       value: "Mangalore" },
+  { label: "Hassan",          value: "Hassan" },
+  { label: "Chikkamagaluru",  value: "Chikkamagaluru" },
+  { label: "Other (type below)", value: "__other__" },
 ];
 
 const CATEGORIES: Option[] = [
@@ -140,6 +143,21 @@ export default function NewTicketPage() {
       });
 
     } else if (current === "location") {
+      if (val === "Other (type below)") {
+        setStep("locationOther");
+        await botSay("Please type your location:");
+      } else {
+        const newAnswers = { ...answers, location: val };
+        setAnswers(newAnswers);
+        setStep("department");
+        setProgress(34);
+        await botSay("Got it! Which department do you work in?", {
+          type: "options",
+          options: DEPARTMENTS,
+        });
+      }
+
+    } else if (current === "locationOther") {
       const newAnswers = { ...answers, location: val };
       setAnswers(newAnswers);
       setStep("department");
@@ -409,7 +427,7 @@ export default function NewTicketPage() {
                 <div style={{ flex: 1, position: "relative" }}>
                   <textarea ref={inputRef} value={draft} onChange={e => setDraft(e.target.value)} onKeyDown={handleKey}
                     placeholder={step === "description" ? "Describe the issue in detail…" : "Type your reply…"}
-                    disabled={isTyping || step === "done" || (step !== "name" && step !== "contact" && step !== "description" && step !== "intro" && step !== "ticketType")}
+                    disabled={isTyping || step === "done" || (step !== "name" && step !== "contact" && step !== "description" && step !== "intro" && step !== "ticketType" && step !== "locationOther")}
                     rows={1}
                     style={{ width: "100%", padding: "11px 48px 11px 16px", background: "var(--surface)", border: "1.5px solid var(--border-2)", borderRadius: 12, fontSize: 14, color: "var(--text-1)", outline: "none", resize: "none", maxHeight: 120, overflowY: "auto", lineHeight: 1.5, transition: "border-color 0.15s", fontFamily: "inherit" }}
                     onFocus={e => { e.target.style.borderColor = "var(--gold)"; }}
@@ -423,7 +441,7 @@ export default function NewTicketPage() {
                 </button>
               </div>
             )}
-            {step === "name" || step === "contact" || step === "description"
+            {(step === "name" || step === "contact" || step === "description" || step === "locationOther")
               ? <p style={{ fontSize: 11, color: "var(--text-3)", marginTop: 6, textAlign: "right" }}>Press Enter to send · Shift+Enter for new line</p>
               : null}
           </div>
