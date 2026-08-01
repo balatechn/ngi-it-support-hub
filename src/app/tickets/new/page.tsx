@@ -21,9 +21,14 @@ interface Message {
 interface Option { label: string; value: string; icon?: React.ReactNode; desc?: string; color?: string }
 
 // ── Steps ────────────────────────────────────────────────────
-type Step = "intro"|"name"|"location"|"locationOther"|"department"|"contact"|"ticketType"|"category"|"priority"|"description"|"attachment"|"done";
+type Step = "intro"|"raiseFor"|"otherName"|"otherEmail"|"name"|"location"|"locationOther"|"department"|"contact"|"ticketType"|"category"|"priority"|"description"|"attachment"|"done";
 
-const STEPS: Step[] = ["intro","name","location","locationOther","department","contact","ticketType","category","priority","description","attachment","done"];
+const STEPS: Step[] = ["intro","raiseFor","otherName","otherEmail","name","location","locationOther","department","contact","ticketType","category","priority","description","attachment","done"];
+
+const RAISE_FOR_OPTIONS: Option[] = [
+  { label: "Myself", value: "myself", desc: "Raise a ticket for my own issue or request" },
+  { label: "Someone else", value: "other", desc: "Raise a ticket on behalf of another employee" },
+];
 
 const TICKET_TYPES: Option[] = [
   { label: "Issue", value: "issue", icon: <Wrench className="w-5 h-5" />, desc: "Something is broken or not working", color: "#EF4444" },
@@ -69,6 +74,7 @@ function fmt(d: Date) { return d.toLocaleTimeString([], { hour: "2-digit", minut
 
 export default function NewTicketPage() {
   const { data: session, status } = useSession();
+  const isAdmin = (session?.user as { role?: string } | undefined)?.role === "admin";
   const [messages, setMessages] = useState<Message[]>([]);
   const [step, setStep] = useState<Step>("intro");
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -110,7 +116,14 @@ export default function NewTicketPage() {
     const seq = async () => {
       await new Promise(r => setTimeout(r, 400));
       await botSay(`Hi ${firstName}! 👋 I'm the NGI IT Support Assistant. I'll help you raise a support ticket in just a few steps.`);
-      if (sessionName) {
+      if (isAdmin) {
+        // Admin can raise for themselves or someone else
+        setStep("raiseFor");
+        setProgress(10);
+        await botSay("Are you raising this ticket for yourself or on behalf of someone else?", {
+          type: "options", options: RAISE_FOR_OPTIONS,
+        });
+      } else if (sessionName) {
         setAnswers({ name: sessionName });
         setStep("location");
         setProgress(22);
@@ -130,7 +143,32 @@ export default function NewTicketPage() {
     addMsg({ role: "user", content: val, type: "text" });
     setDraft("");
 
-    if (current === "name") {
+    if (current === "raiseFor") {
+      if (val === "Myself") {
+        const sessionName = session?.user?.name ?? "";
+        setAnswers({ ...answers, name: sessionName, raiseForEmail: session?.user?.email ?? "" });
+        setStep("location");
+        setProgress(22);
+        await botSay("Which office or location are you working from?", { type: "options", options: LOCATIONS });
+      } else {
+        setStep("otherName");
+        setProgress(14);
+        await botSay("What is their full name?");
+      }
+
+    } else if (current === "otherName") {
+      setAnswers({ ...answers, name: val });
+      setStep("otherEmail");
+      setProgress(18);
+      await botSay(`Got it. What is ${val}'s email address?`);
+
+    } else if (current === "otherEmail") {
+      setAnswers({ ...answers, raiseForEmail: val });
+      setStep("location");
+      setProgress(22);
+      await botSay("Which office or location are they working from?", { type: "options", options: LOCATIONS });
+
+    } else if (current === "name") {
       const newAnswers = { ...answers, name: val };
       setAnswers(newAnswers);
       setStep("location");
@@ -225,6 +263,8 @@ export default function NewTicketPage() {
       const allAnswers = { ...answers };
 
       // Submit ticket to API + trigger emails
+      // Use raiseForEmail if admin raised on behalf of someone else
+      const ticketEmail = allAnswers.raiseForEmail || session?.user?.email || "";
       let id = `NGI-${String(Math.floor(10000 + Math.random() * 90000))}`;
       try {
         const res = await fetch("/api/tickets", {
@@ -232,7 +272,7 @@ export default function NewTicketPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             ...allAnswers,
-            email: session?.user?.email ?? "",
+            email: ticketEmail,
           }),
         });
         if (res.ok) {
@@ -244,7 +284,10 @@ export default function NewTicketPage() {
       }
 
       setTicketId(id);
-      await botSay(`🎉 Your ticket has been created! A confirmation email has been sent to you.`);
+      const forOther = allAnswers.raiseForEmail && allAnswers.raiseForEmail !== (session?.user?.email ?? "");
+      await botSay(forOther
+        ? `🎉 Ticket created on behalf of ${allAnswers.name}! A confirmation email has been sent to ${ticketEmail}.`
+        : `🎉 Your ticket has been created! A confirmation email has been sent to you.`);
       addMsg({
         role: "bot",
         content: id,
