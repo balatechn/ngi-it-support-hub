@@ -3,7 +3,7 @@ WORKDIR /app
 COPY . .
 # --include=dev ensures devDependencies are installed regardless of NODE_ENV
 RUN npm ci --include=dev
-RUN npm run build
+RUN mkdir -p /app/public && npm run build
 
 FROM node:22-alpine AS runner
 WORKDIR /app
