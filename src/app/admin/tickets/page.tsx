@@ -1,7 +1,7 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { RefreshCw, CheckCircle, Clock, AlertCircle, XCircle, Loader2, Send } from "lucide-react";
+import { RefreshCw, CheckCircle, Clock, AlertCircle, XCircle, Loader2, Send, Search } from "lucide-react";
 
 interface Ticket {
   id: string;
@@ -38,6 +38,15 @@ function fmt(iso: string) {
   });
 }
 
+const STATUS_TABS = [
+  { value: "all",         label: "All" },
+  { value: "open",        label: "Open" },
+  { value: "in_progress", label: "In Progress" },
+  { value: "pending",     label: "Pending" },
+  { value: "resolved",    label: "Resolved" },
+  { value: "closed",      label: "Closed" },
+];
+
 export default function AdminTicketsPage() {
   const [tickets, setTickets]         = useState<Ticket[]>([]);
   const [loading, setLoading]         = useState(true);
@@ -46,6 +55,8 @@ export default function AdminTicketsPage() {
   const [noteMap, setNoteMap]         = useState<Record<string, string>>({});
   const [toastMsg, setToastMsg]       = useState("");
   const [expanded, setExpanded]       = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [search, setSearch]             = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -96,35 +107,84 @@ export default function AdminTicketsPage() {
 
   const statusInfo = (s: string) => STATUSES.find(x => x.value === s) ?? STATUSES[0];
 
+  const counts = useMemo(() => {
+    const c: Record<string, number> = { all: tickets.length };
+    tickets.forEach(t => { c[t.status] = (c[t.status] ?? 0) + 1; });
+    return c;
+  }, [tickets]);
+
+  const visible = useMemo(() => {
+    let list = [...tickets];
+    if (statusFilter !== "all") list = list.filter(t => t.status === statusFilter);
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(t =>
+        t.id.toLowerCase().includes(q) ||
+        t.name.toLowerCase().includes(q) ||
+        t.email.toLowerCase().includes(q) ||
+        t.description.toLowerCase().includes(q) ||
+        t.category.toLowerCase().includes(q) ||
+        t.department.toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [tickets, statusFilter, search]);
+
   return (
     <AppLayout title="Ticket Inbox">
       <div style={{ padding: "20px 24px", maxWidth: 1100, margin: "0 auto" }}>
 
         {/* Header */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <div>
-            <p style={{ fontSize: 13, color: "var(--text-2)", marginTop: 2 }}>
-              {tickets.length} ticket{tickets.length !== 1 ? "s" : ""} · Update status to notify user by email
-            </p>
-          </div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <p style={{ fontSize: 13, color: "var(--text-2)" }}>
+            {tickets.length} ticket{tickets.length !== 1 ? "s" : ""} · Update status to notify user by email
+          </p>
           <button onClick={load}
             style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "var(--surface)", border: "1px solid var(--border-2)", borderRadius: 8, cursor: "pointer", fontSize: 12, color: "var(--text-2)", fontWeight: 500 }}>
             <RefreshCw style={{ width: 13, height: 13 }} /> Refresh
           </button>
         </div>
 
+        {/* Status tabs */}
+        <div style={{ display: "flex", gap: 4, marginBottom: 14, overflowX: "auto", paddingBottom: 2 }}>
+          {STATUS_TABS.map(({ value, label }) => {
+            const active = statusFilter === value;
+            const count = counts[value] ?? 0;
+            return (
+              <button key={value} onClick={() => setStatusFilter(value)}
+                style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 8, border: `1.5px solid ${active ? "#C49020" : "var(--border-2)"}`, background: active ? "rgba(196,144,32,0.08)" : "var(--surface)", color: active ? "#C49020" : "var(--text-2)", fontWeight: active ? 700 : 500, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap", transition: "all 0.15s" }}>
+                {label}
+                <span style={{ background: active ? "rgba(196,144,32,0.2)" : "var(--surface-2)", color: active ? "#C49020" : "var(--text-3)", borderRadius: 99, padding: "1px 6px", fontSize: 11, fontWeight: 700 }}>{count}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Search */}
+        <div style={{ position: "relative", marginBottom: 16, maxWidth: 420 }}>
+          <Search style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", width: 14, height: 14, color: "var(--text-3)" }} />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name, email, category…"
+            style={{ width: "100%", padding: "9px 12px 9px 34px", background: "var(--surface)", border: "1.5px solid var(--border-2)", borderRadius: 8, fontSize: 13, color: "var(--text-1)", outline: "none" }}
+            onFocus={e => { e.target.style.borderColor = "#C49020"; }}
+            onBlur={e => { e.target.style.borderColor = "var(--border-2)"; }} />
+        </div>
+
         {loading ? (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 80, color: "var(--text-3)" }}>
             <Loader2 style={{ width: 24, height: 24, animation: "spin 1s linear infinite", marginRight: 10 }} /> Loading tickets…
           </div>
-        ) : tickets.length === 0 ? (
+        ) : visible.length === 0 ? (
           <div style={{ textAlign: "center", padding: 80 }}>
-            <p style={{ fontSize: 15, fontWeight: 600, color: "var(--text-2)", marginBottom: 8 }}>No tickets yet</p>
-            <p style={{ fontSize: 13, color: "var(--text-3)" }}>Tickets submitted via the portal will appear here.</p>
+            <p style={{ fontSize: 15, fontWeight: 600, color: "var(--text-2)", marginBottom: 8 }}>
+              {tickets.length === 0 ? "No tickets yet" : "No tickets match your filters"}
+            </p>
+            <p style={{ fontSize: 13, color: "var(--text-3)" }}>
+              {tickets.length === 0 ? "Tickets submitted via the portal will appear here." : "Try a different status or clear the search."}
+            </p>
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {tickets.map(t => {
+            {visible.map(t => {
               const si = statusInfo(t.status);
               const isExpanded = expanded === t.id;
               const currentStatus = statusMap[t.id] ?? t.status;
