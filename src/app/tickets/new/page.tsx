@@ -1,11 +1,11 @@
 "use client";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import {
-  Send, Paperclip, CheckCircle2, Loader2, X, Copy, Check,
+  Send, Paperclip, CheckCircle2, Loader2, Copy, Check,
   Wifi, Monitor, Printer, Mail, ShieldAlert, HelpCircle,
-  Cpu, Server, Clock, AlertTriangle, ChevronDown, Wrench, ClipboardList,
+  Cpu, Server, Wrench, ClipboardList, Search,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -19,6 +19,11 @@ interface Message {
   time: Date;
 }
 interface Option { label: string; value: string; icon?: React.ReactNode; desc?: string; color?: string }
+interface Employee { id: string; displayName: string; mail: string | null; userPrincipalName: string; jobTitle: string | null; department: string | null }
+
+const EMP_COLORS = ["#2563EB","#059669","#7C3AED","#DB2777","#D97706","#0891B2","#C49020","#DC2626","#0D9488"];
+function empAvColor(name: string) { return EMP_COLORS[(name.charCodeAt(0) ?? 65) % EMP_COLORS.length]; }
+function empInitials(name: string) { return (name||"U").split(" ").map(w=>w[0]??"").join("").toUpperCase().slice(0,2)||"U"; }
 
 // ── Steps ────────────────────────────────────────────────────
 type Step = "intro"|"raiseFor"|"otherName"|"otherEmail"|"name"|"location"|"locationOther"|"department"|"contact"|"ticketType"|"category"|"priority"|"description"|"attachment"|"done";
@@ -84,9 +89,13 @@ export default function NewTicketPage() {
   const [ticketId, setTicketId] = useState("");
   const [copied, setCopied] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [empSearch, setEmpSearch] = useState("");
+  const [showEmpList, setShowEmpList] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const empInputRef = useRef<HTMLInputElement>(null);
   const startedRef = useRef(false);
 
   const addMsg = useCallback((msg: Omit<Message, "id" | "time">) => {
@@ -106,6 +115,39 @@ export default function NewTicketPage() {
       }, 700 + Math.min(content.length * 10, 800));
     });
   }, [addMsg]);
+
+  // Fetch employee directory for admin picker
+  useEffect(() => {
+    if (status === "authenticated" && isAdmin) {
+      fetch("/api/users").then(r => r.json()).then(data => {
+        if (Array.isArray(data)) setEmployees(data);
+      }).catch(() => {});
+    }
+  }, [status, isAdmin]);
+
+  const filteredEmployees = useMemo(() => {
+    const q = empSearch.trim().toLowerCase();
+    const list = q
+      ? employees.filter(e =>
+          e.displayName.toLowerCase().includes(q) ||
+          (e.mail ?? e.userPrincipalName).toLowerCase().includes(q) ||
+          (e.jobTitle ?? "").toLowerCase().includes(q) ||
+          (e.department ?? "").toLowerCase().includes(q)
+        )
+      : employees;
+    return list.slice(0, 8);
+  }, [employees, empSearch]);
+
+  const selectEmployee = useCallback(async (emp: Employee) => {
+    const email = emp.mail ?? emp.userPrincipalName;
+    addMsg({ role: "user", content: emp.displayName, type: "text" });
+    setAnswers(prev => ({ ...prev, name: emp.displayName, raiseForEmail: email }));
+    setEmpSearch("");
+    setShowEmpList(false);
+    setStep("location");
+    setProgress(22);
+    await botSay("Which office or location are they working from?", { type: "options", options: LOCATIONS });
+  }, [addMsg, botSay]);
 
   // Kick off intro — wait for session, skip name step if already known
   useEffect(() => {
@@ -482,6 +524,62 @@ export default function NewTicketPage() {
                   style={{ padding: "12px 20px", background: "var(--surface-2)", border: "1px solid var(--border-2)", borderRadius: 12, cursor: "pointer", color: "var(--text-2)", fontSize: 13, fontWeight: 500 }}>
                   Skip
                 </button>
+              </div>
+            ) : step === "otherName" ? (
+              /* Employee picker */
+              <div style={{ position: "relative" }}>
+                <div style={{ position: "relative" }}>
+                  <Search style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", width: 15, height: 15, color: "var(--text-3)", pointerEvents: "none" }} />
+                  <input
+                    ref={empInputRef}
+                    value={empSearch}
+                    onChange={e => { setEmpSearch(e.target.value); setShowEmpList(true); }}
+                    onFocus={() => setShowEmpList(true)}
+                    onBlur={() => setTimeout(() => setShowEmpList(false), 150)}
+                    placeholder="Search employee by name or email…"
+                    style={{ width: "100%", padding: "11px 16px 11px 36px", background: "var(--surface)", border: "1.5px solid var(--border-2)", borderRadius: 12, fontSize: 14, color: "var(--text-1)", outline: "none", fontFamily: "inherit", boxSizing: "border-box" }}
+                    onKeyDown={e => { if (e.key === "Escape") setShowEmpList(false); }}
+                  />
+                </div>
+
+                {/* Dropdown list */}
+                {showEmpList && (
+                  <div style={{ position: "absolute", bottom: "calc(100% + 6px)", left: 0, right: 0, background: "var(--surface)", border: "1.5px solid var(--border-2)", borderRadius: 12, boxShadow: "0 -4px 24px rgba(0,0,0,0.12)", zIndex: 200, maxHeight: 280, overflowY: "auto" }}>
+                    {employees.length === 0 ? (
+                      <div style={{ padding: "16px", textAlign: "center", color: "var(--text-3)", fontSize: 13 }}>
+                        <Loader2 style={{ width: 14, height: 14, display: "inline", animation: "spin 1s linear infinite", marginRight: 6 }} />
+                        Loading directory…
+                      </div>
+                    ) : filteredEmployees.length === 0 ? (
+                      <div style={{ padding: "14px 16px", color: "var(--text-3)", fontSize: 13 }}>No employees match &quot;{empSearch}&quot;</div>
+                    ) : filteredEmployees.map((emp, i) => {
+                      const email = emp.mail ?? emp.userPrincipalName;
+                      return (
+                        <button
+                          key={emp.id}
+                          onMouseDown={e => { e.preventDefault(); selectEmployee(emp); }}
+                          style={{ width: "100%", textAlign: "left", padding: "10px 14px", background: "none", border: "none", borderBottom: i < filteredEmployees.length - 1 ? "1px solid var(--border-1)" : "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 10, transition: "background 0.1s" }}
+                          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--surface-2)"; }}
+                          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "none"; }}
+                        >
+                          <div style={{ width: 34, height: 34, borderRadius: "50%", background: empAvColor(emp.displayName), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "#fff", flexShrink: 0 }}>
+                            {empInitials(emp.displayName)}
+                          </div>
+                          <div style={{ minWidth: 0 }}>
+                            <p style={{ fontSize: 13, fontWeight: 600, color: "var(--text-1)", marginBottom: 2 }}>{emp.displayName}</p>
+                            <p style={{ fontSize: 11, color: "var(--text-3)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {email}{emp.department ? ` · ${emp.department}` : ""}
+                            </p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <p style={{ fontSize: 11, color: "var(--text-3)", marginTop: 6 }}>
+                  Showing {filteredEmployees.length} of {employees.length} employees from Microsoft 365
+                </p>
               </div>
             ) : (
               <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
