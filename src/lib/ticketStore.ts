@@ -1,6 +1,14 @@
 import fs from "fs";
 import path from "path";
 
+export interface TicketNote {
+  timestamp: string;
+  updatedBy: string;
+  oldStatus: string;
+  newStatus: string;
+  note?: string;
+}
+
 export interface TicketRecord {
   id: string;
   name: string;
@@ -15,6 +23,7 @@ export interface TicketRecord {
   status: "open" | "in_progress" | "pending" | "resolved" | "closed";
   createdAt: string;
   updatedAt: string;
+  history?: TicketNote[];
 }
 
 const DATA_DIR  = process.env.DATA_DIR ?? "/data";

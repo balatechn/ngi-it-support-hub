@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { ticketStore, updateTicket } from "@/lib/ticketStore";
+import { ticketStore, updateTicket, TicketNote } from "@/lib/ticketStore";
 import { sendEmail, ticketStatusUpdateHtml } from "@/lib/email";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -22,7 +22,17 @@ export async function PATCH(
     const newStatus = body.status ?? ticket.status;
     const note: string | undefined = body.note;
 
-    const updated = updateTicket(params.id, { status: newStatus });
+    const historyEntry: TicketNote = {
+      timestamp: new Date().toISOString(),
+      updatedBy,
+      oldStatus,
+      newStatus,
+      note: note || undefined,
+    };
+    const updated = updateTicket(params.id, {
+      status: newStatus,
+      history: [...(ticket.history ?? []), historyEntry],
+    });
     if (!updated) return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
 
     // Email the ticket raiser when status changes

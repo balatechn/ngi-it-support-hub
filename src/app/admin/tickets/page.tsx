@@ -3,6 +3,8 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { RefreshCw, CheckCircle, Clock, AlertCircle, XCircle, Loader2, Send, Search } from "lucide-react";
 
+interface TicketNote { timestamp: string; updatedBy: string; oldStatus: string; newStatus: string; note?: string; }
+
 interface Ticket {
   id: string;
   name: string;
@@ -17,6 +19,7 @@ interface Ticket {
   status: string;
   createdAt: string;
   updatedAt: string;
+  history?: TicketNote[];
 }
 
 const STATUSES = [
@@ -257,6 +260,39 @@ export default function AdminTicketsPage() {
                           </div>
                         ))}
                       </div>
+
+                      {/* Reply / note history */}
+                      {t.history && t.history.length > 0 && (
+                        <div style={{ marginBottom: 16 }}>
+                          <p style={{ fontSize: 11, fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>History</p>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                            {t.history.map((h, i) => {
+                              const si = statusInfo(h.newStatus);
+                              return (
+                                <div key={i} style={{ background: "var(--surface)", border: "1px solid var(--border-1)", borderRadius: 8, padding: "9px 12px", display: "flex", gap: 10, alignItems: "flex-start" }}>
+                                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: si.color, flexShrink: 0, marginTop: 4 }} />
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: h.note ? 4 : 0 }}>
+                                      <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-1)" }}>
+                                        {h.oldStatus.replace("_"," ")} → <span style={{ color: si.color }}>{h.newStatus.replace("_"," ")}</span>
+                                      </span>
+                                      <span style={{ fontSize: 11, color: "var(--text-3)" }}>by {h.updatedBy}</span>
+                                      <span style={{ fontSize: 11, color: "var(--text-3)", marginLeft: "auto" }}>
+                                        {new Date(h.timestamp).toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                                      </span>
+                                    </div>
+                                    {h.note && (
+                                      <p style={{ fontSize: 12, color: "var(--text-2)", background: "rgba(196,144,32,0.06)", border: "1px solid rgba(196,144,32,0.2)", borderRadius: 6, padding: "5px 10px", marginTop: 4 }}>
+                                        💬 {h.note}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
 
                       {/* Status update */}
                       <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
