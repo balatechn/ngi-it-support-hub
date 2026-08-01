@@ -17,14 +17,15 @@ export async function GET() {
   try {
     const token = await getGraphToken();
 
-    // Fetch all enabled members (skip service accounts / guests by filtering accountEnabled)
+    // ConsistencyLevel: eventual + $count=true are required when combining $filter with $orderby on the users endpoint
     const res = await fetch(
       "https://graph.microsoft.com/v1.0/users" +
-      "?$select=id,displayName,mail,userPrincipalName,jobTitle,department,officeLocation,mobilePhone,accountEnabled" +
+      "?$count=true" +
+      "&$select=id,displayName,mail,userPrincipalName,jobTitle,department,officeLocation,mobilePhone,accountEnabled" +
       "&$filter=accountEnabled eq true" +
       "&$orderby=displayName" +
       "&$top=999",
-      { headers: { Authorization: `Bearer ${token}` } }
+      { headers: { Authorization: `Bearer ${token}`, ConsistencyLevel: "eventual" } }
     );
 
     if (!res.ok) {
