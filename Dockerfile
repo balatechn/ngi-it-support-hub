@@ -1,5 +1,7 @@
 FROM node:22-alpine AS builder
 WORKDIR /app
+# Override NODE_ENV so npm ci installs devDependencies (needed for Next.js build)
+ENV NODE_ENV=development
 COPY . .
 RUN npm ci
 RUN npm run build
