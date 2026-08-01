@@ -13,7 +13,8 @@ const NAV_MAIN = [
 ];
 
 const NAV_ADMIN = [
-  { href: "/admin/tickets", label: "Ticket Inbox" },
+  { href: "/admin/tickets",    label: "Ticket Inbox" },
+  { href: "/admin/employees",  label: "Employee" },
 ];
 
 const MOCK_NOTIFS = [
@@ -317,7 +318,10 @@ export function TopNav() {
           <Link href="/tickets/new" style={{ padding: "12px 20px", fontSize: 13, fontWeight: 600, color: "#C49020", borderLeft: isActive("/tickets/new") ? "3px solid #C49020" : "3px solid transparent", textDecoration: "none", display: "block" }}>+ New Request</Link>
           {/* Admin: Ticket Inbox */}
           {isAdmin && (
-            <Link href="/admin/tickets" style={{ padding: "12px 20px", fontSize: 13, fontWeight: isActive("/admin/tickets") ? 600 : 400, color: isActive("/admin/tickets") ? "#FFF" : "rgba(255,255,255,0.6)", borderLeft: isActive("/admin/tickets") ? "3px solid #C49020" : "3px solid transparent", textDecoration: "none", display: "block" }}>Ticket Inbox</Link>
+            <>
+              <Link href="/admin/tickets" style={{ padding: "12px 20px", fontSize: 13, fontWeight: isActive("/admin/tickets") ? 600 : 400, color: isActive("/admin/tickets") ? "#FFF" : "rgba(255,255,255,0.6)", borderLeft: isActive("/admin/tickets") ? "3px solid #C49020" : "3px solid transparent", textDecoration: "none", display: "block" }}>Ticket Inbox</Link>
+              <Link href="/admin/employees" style={{ padding: "12px 20px", fontSize: 13, fontWeight: isActive("/admin/employees") ? 600 : 400, color: isActive("/admin/employees") ? "#FFF" : "rgba(255,255,255,0.6)", borderLeft: isActive("/admin/employees") ? "3px solid #C49020" : "3px solid transparent", textDecoration: "none", display: "block" }}>Employee</Link>
+            </>
           )}
           <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", padding: "12px 20px", display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ width: 28, height: 28, borderRadius: "50%", background: avColor(user?.name ?? "U"), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "#FFF", flexShrink: 0 }}>
