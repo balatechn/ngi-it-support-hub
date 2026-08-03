@@ -43,6 +43,7 @@ export default function EmailRequestPage() {
   const [requestType, setRequestType] = useState<RequestType | null>(null);
   const [submitting, setSubmitting]   = useState(false);
   const [submitted, setSubmitted]     = useState(false);
+  const [ticketId,  setTicketId]      = useState("");
   const [error, setError]             = useState("");
 
   // Common fields
@@ -110,6 +111,8 @@ export default function EmailRequestPage() {
         body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error("Failed");
+      const json = await res.json();
+      setTicketId(json.ticketId ?? "");
       setSubmitted(true);
     } catch {
       setError("Could not send your request. Please try again or contact IT directly.");
@@ -128,11 +131,17 @@ export default function EmailRequestPage() {
             <CheckCircle2 style={{ width: 36, height: 36, color: "#10B981" }} />
           </div>
           <h2 style={{ fontSize: 22, fontWeight: 700, color: "var(--text-1)", marginBottom: 10 }}>Request Submitted!</h2>
-          <p style={{ fontSize: 14, color: "var(--text-2)", lineHeight: 1.6, marginBottom: 8 }}>
-            Your <strong>{sel?.label}</strong> request has been sent to the IT team.
+          <p style={{ fontSize: 14, color: "var(--text-2)", lineHeight: 1.6, marginBottom: 16 }}>
+            Your <strong>{sel?.label}</strong> request has been received and is in the IT team&apos;s queue.
           </p>
+          {ticketId && (
+            <div style={{ background: "#0F1D2E", borderRadius: 10, padding: "12px 20px", marginBottom: 16, display: "inline-block" }}>
+              <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", margin: "0 0 4px" }}>Ticket ID</p>
+              <p style={{ color: "#F0F9FF", fontFamily: "monospace", fontSize: 22, fontWeight: 800, letterSpacing: "0.08em", margin: 0 }}>{ticketId}</p>
+            </div>
+          )}
           <p style={{ fontSize: 13, color: "var(--text-3)", marginBottom: 32 }}>
-            The IT admin will action your request and get back to you within 24 hours.
+            A confirmation email has been sent to you. The IT admin will action within 24 hours and you&apos;ll be notified by email when the status updates.
           </p>
           <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
             <button onClick={() => { setSubmitted(false); setRequestType(null); setPhone(""); setDept(""); setLocation(""); setNewEmpName(""); setDesignation(""); setManagerName(""); setManagerEmail(""); setStartDate(""); setTargetEmail(""); setResetReason(""); setRenewalEmail(""); setRenewalPeriod(""); setRenewalReason(""); setCurrentEmail(""); setCurrentName(""); setNewName(""); setRenameReason(""); setOtherEmail(""); setOtherDetails(""); }}
