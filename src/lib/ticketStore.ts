@@ -26,6 +26,59 @@ export interface TicketRecord {
   history?: TicketNote[];
 }
 
+// ── Remote mode: Vercel → Coolify ticket server ───────────────
+const REMOTE_URL = process.env.TICKETS_API_URL?.replace(/\/$/, "");
+const REMOTE_KEY = process.env.TICKET_API_KEY ?? "";
+export const isRemote = !!REMOTE_URL;
+
+function remoteHeaders(): HeadersInit {
+  return { "Content-Type": "application/json", "x-api-key": REMOTE_KEY };
+}
+
+export async function remoteListTickets(): Promise<TicketRecord[]> {
+  const res = await fetch(`${REMOTE_URL}/tickets`, {
+    headers: remoteHeaders(),
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`Ticket server ${res.status}`);
+  return res.json();
+}
+
+export async function remoteGetTicket(id: string): Promise<TicketRecord | null> {
+  const res = await fetch(`${REMOTE_URL}/tickets/${id}`, {
+    headers: remoteHeaders(),
+    cache: "no-store",
+  });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`Ticket server ${res.status}`);
+  return res.json();
+}
+
+export async function remoteSaveTicket(ticket: TicketRecord): Promise<TicketRecord> {
+  const res = await fetch(`${REMOTE_URL}/tickets`, {
+    method: "POST",
+    headers: remoteHeaders(),
+    body: JSON.stringify(ticket),
+  });
+  if (!res.ok) throw new Error(`Ticket server ${res.status}`);
+  return res.json();
+}
+
+export async function remotePatchTicket(
+  id: string,
+  patch: Partial<TicketRecord>
+): Promise<TicketRecord | null> {
+  const res = await fetch(`${REMOTE_URL}/tickets/${id}`, {
+    method: "PATCH",
+    headers: remoteHeaders(),
+    body: JSON.stringify(patch),
+  });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`Ticket server ${res.status}`);
+  return res.json();
+}
+
+// ── Local file-system mode (dev without TICKETS_API_URL) ──────
 const DATA_DIR  = process.env.DATA_DIR ?? "/data";
 const DATA_FILE = path.join(DATA_DIR, "tickets.json");
 
@@ -33,8 +86,7 @@ function loadFromDisk(): Map<string, TicketRecord> {
   try {
     if (!fs.existsSync(DATA_DIR))  fs.mkdirSync(DATA_DIR, { recursive: true });
     if (!fs.existsSync(DATA_FILE)) return new Map();
-    const raw = fs.readFileSync(DATA_FILE, "utf-8");
-    const arr: TicketRecord[] = JSON.parse(raw);
+    const arr: TicketRecord[] = JSON.parse(fs.readFileSync(DATA_FILE, "utf-8"));
     return new Map(arr.map(t => [t.id, t]));
   } catch {
     return new Map();
@@ -55,9 +107,9 @@ declare global {
   var __ticketStore: Map<string, TicketRecord> | undefined;
 }
 
-// Load from disk on first init; reuse in-memory map across hot-reloads
-export const ticketStore: Map<string, TicketRecord> =
-  global.__ticketStore ?? (global.__ticketStore = loadFromDisk());
+export const ticketStore: Map<string, TicketRecord> = isRemote
+  ? new Map()
+  : (global.__ticketStore ?? (global.__ticketStore = loadFromDisk()));
 
 export function saveTicket(record: TicketRecord) {
   ticketStore.set(record.id, record);
