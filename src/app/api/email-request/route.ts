@@ -151,21 +151,26 @@ export async function POST(req: Request) {
       updatedAt:   now,
     };
 
-    if (isRemote) {
-      await remoteSaveTicket(ticket);
-    } else {
-      saveTicket(ticket);
+    // Save ticket to inbox — best-effort, never blocks the email
+    try {
+      if (isRemote) {
+        await remoteSaveTicket(ticket);
+      } else {
+        saveTicket(ticket);
+      }
+    } catch (ticketErr) {
+      console.error("Ticket save error (non-fatal):", ticketErr);
     }
 
-    // 1) Detailed email to IT admin (bala) with all fields + ticket ID
+    // Send detailed email to IT admin — this is the primary action
     const adminHtml = emailRequestHtml(data, id);
-    sendEmail({
+    await sendEmail({
       to:      ADMIN_EMAIL,
       subject: `[${id}] Email Request: ${typeLabel} — ${data.requesterName ?? "User"}`,
       html:    adminHtml,
-    }).catch(err => console.error("Admin email error:", err));
+    });
 
-    // 2) Confirmation email to the requester
+    // Send confirmation to requester (fire-and-forget)
     if (data.requesterEmail && data.requesterEmail !== ADMIN_EMAIL) {
       const userHtml = ticketCreatedHtml(ticket);
       sendEmail({
