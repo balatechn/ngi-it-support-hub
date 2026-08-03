@@ -8,6 +8,8 @@ services:
     restart: unless-stopped
     networks:
       - coolify
+    labels:
+      - "traefik.docker.network=coolify"
 
 networks:
   coolify:
