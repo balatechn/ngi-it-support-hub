@@ -9,7 +9,20 @@ services:
     networks:
       - coolify
     labels:
+      - "traefik.enable=true"
       - "traefik.docker.network=coolify"
+      - "traefik.http.middlewares.ngi-gzip.compress=true"
+      - "traefik.http.middlewares.ngi-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.ngi-http.rule=Host(`itsupport.nationalgroupindia.com`)"
+      - "traefik.http.routers.ngi-http.entrypoints=http"
+      - "traefik.http.routers.ngi-http.middlewares=ngi-https-redirect"
+      - "traefik.http.routers.ngi-https.rule=Host(`itsupport.nationalgroupindia.com`)"
+      - "traefik.http.routers.ngi-https.entrypoints=https"
+      - "traefik.http.routers.ngi-https.tls=true"
+      - "traefik.http.routers.ngi-https.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.ngi-https.middlewares=ngi-gzip"
+      - "traefik.http.routers.ngi-https.service=ngi-svc"
+      - "traefik.http.services.ngi-svc.loadbalancer.server.port=3000"
 
 networks:
   coolify:
