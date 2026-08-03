@@ -1,4 +1,3 @@
-import { Redis } from "@upstash/redis";
 import fs from "fs";
 import path from "path";
 
@@ -31,17 +30,15 @@ export function genTicketId() {
   return `NGI-${Math.floor(10000 + Math.random() * 90000)}`;
 }
 
-// ── Redis (production) ─────────────────────────────────────────
-const REDIS_URL   = process.env.UPSTASH_REDIS_REST_URL;
-const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
-const TICKETS_KEY = "ngi:tickets";
+// ── Remote mode: Vercel → Coolify ticket server ───────────────
+const REMOTE_URL = process.env.TICKETS_API_URL?.replace(/\/$/, "");
+const REMOTE_KEY = process.env.TICKET_API_KEY ?? "";
 
-const redis =
-  REDIS_URL && REDIS_TOKEN
-    ? new Redis({ url: REDIS_URL, token: REDIS_TOKEN })
-    : null;
+function remoteHeaders(): HeadersInit {
+  return { "Content-Type": "application/json", ...(REMOTE_KEY ? { "x-api-key": REMOTE_KEY } : {}) };
+}
 
-// ── Local file-system (dev without Redis env vars) ─────────────
+// ── Local file-system (dev without TICKETS_API_URL) ────────────
 const DATA_DIR  = process.env.DATA_DIR ?? path.join(process.cwd(), ".ticket-data");
 const DATA_FILE = path.join(DATA_DIR, "tickets.json");
 
@@ -74,13 +71,12 @@ function getLocalStore(): Map<string, TicketRecord> {
   return (global.__ticketStore ??= localRead());
 }
 
-// ── Public API ─────────────────────────────────────────────────
+// ── Public API (all async) ─────────────────────────────────────
 export async function listTickets(): Promise<TicketRecord[]> {
-  if (redis) {
-    const hash = (await redis.hgetall<Record<string, TicketRecord>>(TICKETS_KEY)) ?? {};
-    return Object.values(hash).sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
+  if (REMOTE_URL) {
+    const res = await fetch(`${REMOTE_URL}/tickets`, { headers: remoteHeaders(), cache: "no-store" });
+    if (!res.ok) throw new Error(`Ticket server ${res.status}`);
+    return res.json();
   }
   return Array.from(getLocalStore().values()).sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
@@ -88,15 +84,23 @@ export async function listTickets(): Promise<TicketRecord[]> {
 }
 
 export async function getTicket(id: string): Promise<TicketRecord | null> {
-  if (redis) {
-    return redis.hget<TicketRecord>(TICKETS_KEY, id);
+  if (REMOTE_URL) {
+    const res = await fetch(`${REMOTE_URL}/tickets/${id}`, { headers: remoteHeaders(), cache: "no-store" });
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error(`Ticket server ${res.status}`);
+    return res.json();
   }
   return getLocalStore().get(id) ?? null;
 }
 
 export async function saveTicket(ticket: TicketRecord): Promise<void> {
-  if (redis) {
-    await redis.hset(TICKETS_KEY, { [ticket.id]: ticket });
+  if (REMOTE_URL) {
+    const res = await fetch(`${REMOTE_URL}/tickets`, {
+      method: "POST",
+      headers: remoteHeaders(),
+      body: JSON.stringify(ticket),
+    });
+    if (!res.ok) throw new Error(`Ticket server ${res.status}`);
     return;
   }
   const store = getLocalStore();
@@ -108,9 +112,21 @@ export async function patchTicket(
   id: string,
   patch: Partial<TicketRecord>
 ): Promise<TicketRecord | null> {
-  const existing = await getTicket(id);
+  if (REMOTE_URL) {
+    const res = await fetch(`${REMOTE_URL}/tickets/${id}`, {
+      method: "PATCH",
+      headers: remoteHeaders(),
+      body: JSON.stringify(patch),
+    });
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error(`Ticket server ${res.status}`);
+    return res.json();
+  }
+  const existing = getLocalStore().get(id);
   if (!existing) return null;
   const updated = { ...existing, ...patch, updatedAt: new Date().toISOString() };
-  await saveTicket(updated);
+  const store = getLocalStore();
+  store.set(id, updated);
+  localWrite(store);
   return updated;
 }
