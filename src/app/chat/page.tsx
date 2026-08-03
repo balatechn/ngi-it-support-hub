@@ -20,23 +20,23 @@ interface Chat {
 }
 
 const SUGGESTIONS = [
-  "How do I connect to the company VPN?",
-  "My Outlook is not syncing emails after a Windows update",
-  "How do I reset my Microsoft 365 password?",
-  "How do I enrol a new device in Intune?",
-  "How do I set up Multi-Factor Authentication?",
-  "How do I request a new software license?",
-  "The printer shows offline — how do I fix it?",
-  "How do I access Teams remotely on mobile?",
+  "How do I create a meeting invite in Teams?",
+  "How do I share a file from OneDrive?",
+  "How do I create a Pivot Table in Excel?",
+  "How do I do a mail merge in Word?",
+  "How do I set an out-of-office reply in Outlook?",
+  "How do I create a survey using Microsoft Forms?",
+  "How do I create a channel in Teams?",
+  "How do I use Presenter View in PowerPoint?",
 ];
 
 const KNOWLEDGE_BASE = [
-  { title: "VPN Setup Guide", category: "Network & VPN" },
-  { title: "Password Reset", category: "Account & Access" },
-  { title: "Outlook Sync Fix", category: "Email" },
-  { title: "Intune Enrollment", category: "Devices" },
-  { title: "MFA Setup", category: "Security" },
-  { title: "Printer Troubleshooting", category: "Hardware" },
+  { title: "Teams Meetings & Calls", category: "Microsoft Teams" },
+  { title: "OneDrive File Sharing", category: "OneDrive" },
+  { title: "Excel Formulas & Tables", category: "Excel" },
+  { title: "Word Documents & Mail Merge", category: "Word" },
+  { title: "Outlook Rules & Scheduling", category: "Outlook" },
+  { title: "Forms, Planner & PowerPoint", category: "Other M365 Apps" },
 ];
 
 function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
@@ -199,7 +199,7 @@ export default function ChatPage() {
   const userName = session?.user?.name ?? "User";
 
   return (
-    <AppLayout title="AI Assistant">
+    <AppLayout title="M365 App Assistant">
       <div style={{ height: "calc(100vh - 58px)", display: "flex", overflow: "hidden" }}>
 
         {/* ── Left sidebar: history + suggestions ── */}
@@ -214,7 +214,7 @@ export default function ChatPage() {
           {/* Suggested questions */}
           <div style={{ padding: "0 14px 8px" }}>
             <p style={{ fontSize: 11, fontWeight: 700, color: "var(--text-3)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>
-              Try asking
+              Common questions
             </p>
             {SUGGESTIONS.slice(0, 5).map(s => (
               <button key={s} onClick={() => send(s)}
@@ -232,7 +232,7 @@ export default function ChatPage() {
           {/* KB reference */}
           <div style={{ padding: "0 14px 8px" }}>
             <p style={{ fontSize: 11, fontWeight: 700, color: "var(--text-3)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>
-              Knowledge Base
+              M365 Apps I cover
             </p>
             {KNOWLEDGE_BASE.map(kb => (
               <div key={kb.title} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", borderRadius: 8, marginBottom: 2 }}>
@@ -283,7 +283,7 @@ export default function ChatPage() {
                 <p style={{ fontWeight: 700, fontSize: 14, color: "var(--text-1)" }}>NGI AI Assistant</p>
                 <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
                   <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#10B981" }} />
-                  <p style={{ fontSize: 11, color: "var(--text-3)" }}>Powered by company knowledge base</p>
+                  <p style={{ fontSize: 11, color: "var(--text-3)" }}>Microsoft 365 App Guide</p>
                 </div>
               </div>
             </div>
@@ -303,10 +303,10 @@ export default function ChatPage() {
                 </div>
                 <div>
                   <h3 style={{ fontSize: 20, fontWeight: 700, color: "var(--text-1)", marginBottom: 8, letterSpacing: "-0.01em" }}>
-                    How can I help you today?
+                    How can I help with Microsoft 365?
                   </h3>
-                  <p style={{ fontSize: 14, color: "var(--text-2)", maxWidth: 400, lineHeight: 1.6 }}>
-                    I&apos;m the NGI IT Support AI. Ask me anything about IT issues, company systems, or best practices.
+                  <p style={{ fontSize: 14, color: "var(--text-2)", maxWidth: 440, lineHeight: 1.6 }}>
+                    Ask me how to use Teams, OneDrive, Excel, Word, Outlook, PowerPoint, Forms, or Planner — I&apos;ll give you step-by-step guidance.
                   </p>
                 </div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8, maxWidth: 560, justifyContent: "center" }}>
@@ -395,7 +395,7 @@ export default function ChatPage() {
                 onBlurCapture={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-2)"; (e.currentTarget as HTMLElement).style.boxShadow = "none"; }}>
                 <textarea ref={textRef} value={draft} onChange={e => setDraft(e.target.value)}
                   onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
-                  placeholder="Ask anything about IT support, company systems, troubleshooting…"
+                  placeholder="Ask how to use Teams, OneDrive, Excel, Word, Outlook, PowerPoint…"
                   disabled={loading}
                   rows={1}
                   style={{ flex: 1, background: "transparent", border: "none", outline: "none", fontSize: 14, color: "var(--text-1)", resize: "none", maxHeight: 140, lineHeight: 1.6, fontFamily: "inherit", paddingTop: 2 }} />
@@ -407,7 +407,7 @@ export default function ChatPage() {
                 </button>
               </div>
               <p style={{ fontSize: 11, color: "var(--text-3)", textAlign: "center", marginTop: 8 }}>
-                NGI AI uses your company knowledge base. For complex issues, <a href="/tickets/new" style={{ color: "var(--gold)", textDecoration: "none" }}>raise a support ticket</a>.
+                For Microsoft 365 app help only. Technical IT problems? <a href="/tickets/new" style={{ color: "var(--gold)", textDecoration: "none" }}>Raise a support ticket</a>.
               </p>
             </div>
           </div>
