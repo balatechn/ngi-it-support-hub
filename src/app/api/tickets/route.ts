@@ -1,8 +1,5 @@
 import { NextResponse } from "next/server";
-import {
-  ticketStore, saveTicket, genTicketId,
-  isRemote, remoteSaveTicket, remoteListTickets,
-} from "@/lib/ticketStore";
+import { listTickets, saveTicket, genTicketId } from "@/lib/ticketStore";
 import type { TicketRecord } from "@/lib/ticketStore";
 import { sendEmail, ticketCreatedHtml } from "@/lib/email";
 
@@ -30,17 +27,13 @@ export async function POST(req: Request) {
       updatedAt:   now,
     };
 
-    if (isRemote) {
-      await remoteSaveTicket(ticket);
-    } else {
-      saveTicket(ticket);
-    }
+    await saveTicket(ticket);
 
     const html = ticketCreatedHtml(ticket);
     const recipients = [ADMIN_EMAIL];
     if (ticket.email && ticket.email !== ADMIN_EMAIL) recipients.push(ticket.email);
     sendEmail({
-      to: recipients,
+      to:      recipients,
       subject: `[${id}] New ${ticket.ticketType} – ${ticket.category} | ${ticket.name}`,
       html,
     }).catch(err => console.error("Email send error:", err));
@@ -54,13 +47,7 @@ export async function POST(req: Request) {
 
 export async function GET() {
   try {
-    if (isRemote) {
-      const tickets = await remoteListTickets();
-      return NextResponse.json(tickets);
-    }
-    const tickets = Array.from(ticketStore.values()).sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
+    const tickets = await listTickets();
     return NextResponse.json(tickets);
   } catch (err) {
     console.error("GET /api/tickets error:", err);

@@ -1,3 +1,4 @@
+import { Redis } from "@upstash/redis";
 import fs from "fs";
 import path from "path";
 
@@ -26,63 +27,25 @@ export interface TicketRecord {
   history?: TicketNote[];
 }
 
-// ── Remote mode: Vercel → Coolify ticket server ───────────────
-const REMOTE_URL = process.env.TICKETS_API_URL?.replace(/\/$/, "");
-const REMOTE_KEY = process.env.TICKET_API_KEY ?? "";
-export const isRemote = !!REMOTE_URL;
-
-function remoteHeaders(): HeadersInit {
-  return { "Content-Type": "application/json", "x-api-key": REMOTE_KEY };
+export function genTicketId() {
+  return `NGI-${Math.floor(10000 + Math.random() * 90000)}`;
 }
 
-export async function remoteListTickets(): Promise<TicketRecord[]> {
-  const res = await fetch(`${REMOTE_URL}/tickets`, {
-    headers: remoteHeaders(),
-    cache: "no-store",
-  });
-  if (!res.ok) throw new Error(`Ticket server ${res.status}`);
-  return res.json();
-}
+// ── Redis (production) ─────────────────────────────────────────
+const REDIS_URL   = process.env.UPSTASH_REDIS_REST_URL;
+const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
+const TICKETS_KEY = "ngi:tickets";
 
-export async function remoteGetTicket(id: string): Promise<TicketRecord | null> {
-  const res = await fetch(`${REMOTE_URL}/tickets/${id}`, {
-    headers: remoteHeaders(),
-    cache: "no-store",
-  });
-  if (res.status === 404) return null;
-  if (!res.ok) throw new Error(`Ticket server ${res.status}`);
-  return res.json();
-}
+const redis =
+  REDIS_URL && REDIS_TOKEN
+    ? new Redis({ url: REDIS_URL, token: REDIS_TOKEN })
+    : null;
 
-export async function remoteSaveTicket(ticket: TicketRecord): Promise<TicketRecord> {
-  const res = await fetch(`${REMOTE_URL}/tickets`, {
-    method: "POST",
-    headers: remoteHeaders(),
-    body: JSON.stringify(ticket),
-  });
-  if (!res.ok) throw new Error(`Ticket server ${res.status}`);
-  return res.json();
-}
-
-export async function remotePatchTicket(
-  id: string,
-  patch: Partial<TicketRecord>
-): Promise<TicketRecord | null> {
-  const res = await fetch(`${REMOTE_URL}/tickets/${id}`, {
-    method: "PATCH",
-    headers: remoteHeaders(),
-    body: JSON.stringify(patch),
-  });
-  if (res.status === 404) return null;
-  if (!res.ok) throw new Error(`Ticket server ${res.status}`);
-  return res.json();
-}
-
-// ── Local file-system mode (dev without TICKETS_API_URL) ──────
-const DATA_DIR  = process.env.DATA_DIR ?? "/data";
+// ── Local file-system (dev without Redis env vars) ─────────────
+const DATA_DIR  = process.env.DATA_DIR ?? path.join(process.cwd(), ".ticket-data");
 const DATA_FILE = path.join(DATA_DIR, "tickets.json");
 
-function loadFromDisk(): Map<string, TicketRecord> {
+function localRead(): Map<string, TicketRecord> {
   try {
     if (!fs.existsSync(DATA_DIR))  fs.mkdirSync(DATA_DIR, { recursive: true });
     if (!fs.existsSync(DATA_FILE)) return new Map();
@@ -93,12 +56,12 @@ function loadFromDisk(): Map<string, TicketRecord> {
   }
 }
 
-function saveToDisk(store: Map<string, TicketRecord>) {
+function localWrite(store: Map<string, TicketRecord>) {
   try {
     if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-    fs.writeFileSync(DATA_FILE, JSON.stringify(Array.from(store.values()), null, 2), "utf-8");
+    fs.writeFileSync(DATA_FILE, JSON.stringify(Array.from(store.values()), null, 2));
   } catch (e) {
-    console.error("ticketStore: failed to persist to disk", e);
+    console.error("ticketStore: failed to persist", e);
   }
 }
 
@@ -107,25 +70,47 @@ declare global {
   var __ticketStore: Map<string, TicketRecord> | undefined;
 }
 
-export const ticketStore: Map<string, TicketRecord> = isRemote
-  ? new Map()
-  : (global.__ticketStore ?? (global.__ticketStore = loadFromDisk()));
-
-export function saveTicket(record: TicketRecord) {
-  ticketStore.set(record.id, record);
-  saveToDisk(ticketStore);
+function getLocalStore(): Map<string, TicketRecord> {
+  return (global.__ticketStore ??= localRead());
 }
 
-export function updateTicket(id: string, patch: Partial<TicketRecord>): TicketRecord | null {
-  const existing = ticketStore.get(id);
+// ── Public API ─────────────────────────────────────────────────
+export async function listTickets(): Promise<TicketRecord[]> {
+  if (redis) {
+    const hash = (await redis.hgetall<Record<string, TicketRecord>>(TICKETS_KEY)) ?? {};
+    return Object.values(hash).sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  }
+  return Array.from(getLocalStore().values()).sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+}
+
+export async function getTicket(id: string): Promise<TicketRecord | null> {
+  if (redis) {
+    return redis.hget<TicketRecord>(TICKETS_KEY, id);
+  }
+  return getLocalStore().get(id) ?? null;
+}
+
+export async function saveTicket(ticket: TicketRecord): Promise<void> {
+  if (redis) {
+    await redis.hset(TICKETS_KEY, { [ticket.id]: ticket });
+    return;
+  }
+  const store = getLocalStore();
+  store.set(ticket.id, ticket);
+  localWrite(store);
+}
+
+export async function patchTicket(
+  id: string,
+  patch: Partial<TicketRecord>
+): Promise<TicketRecord | null> {
+  const existing = await getTicket(id);
   if (!existing) return null;
   const updated = { ...existing, ...patch, updatedAt: new Date().toISOString() };
-  ticketStore.set(id, updated);
-  saveToDisk(ticketStore);
+  await saveTicket(updated);
   return updated;
-}
-
-export function genTicketId() {
-  const n = String(Math.floor(10000 + Math.random() * 90000));
-  return `NGI-${n}`;
 }

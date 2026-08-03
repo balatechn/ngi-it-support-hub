@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
 import { sendEmail, ticketCreatedHtml } from "@/lib/email";
-import {
-  saveTicket, genTicketId,
-  isRemote, remoteSaveTicket,
-} from "@/lib/ticketStore";
+import { saveTicket, genTicketId } from "@/lib/ticketStore";
 import type { TicketRecord } from "@/lib/ticketStore";
 
 const ADMIN_EMAIL = "bala@nationalgroupindia.com";
@@ -153,11 +150,7 @@ export async function POST(req: Request) {
 
     // Save ticket to inbox — best-effort, never blocks the email
     try {
-      if (isRemote) {
-        await remoteSaveTicket(ticket);
-      } else {
-        saveTicket(ticket);
-      }
+      await saveTicket(ticket);
     } catch (ticketErr) {
       console.error("Ticket save error (non-fatal):", ticketErr);
     }

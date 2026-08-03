@@ -1,8 +1,5 @@
 import { NextResponse } from "next/server";
-import {
-  ticketStore, updateTicket,
-  isRemote, remoteGetTicket, remotePatchTicket,
-} from "@/lib/ticketStore";
+import { getTicket, patchTicket } from "@/lib/ticketStore";
 import type { TicketNote } from "@/lib/ticketStore";
 import { sendEmail, ticketStatusUpdateHtml } from "@/lib/email";
 import { getServerSession } from "next-auth";
@@ -16,10 +13,7 @@ export async function PATCH(
     const session   = await getServerSession(authOptions);
     const updatedBy = session?.user?.name ?? "IT Support";
 
-    const ticket = isRemote
-      ? await remoteGetTicket(params.id)
-      : (ticketStore.get(params.id) ?? null);
-
+    const ticket = await getTicket(params.id);
     if (!ticket) {
       return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
     }
@@ -37,14 +31,10 @@ export async function PATCH(
       note: note || undefined,
     };
 
-    const patch = {
+    const updated = await patchTicket(params.id, {
       status:  newStatus,
       history: [...(ticket.history ?? []), historyEntry],
-    };
-
-    const updated = isRemote
-      ? await remotePatchTicket(params.id, patch)
-      : updateTicket(params.id, patch);
+    });
 
     if (!updated) return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
 
