@@ -1,255 +1,23 @@
-const KB_CONTEXT = `
-You are the NGI IT Support AI Assistant for National Group India.
-You help employees solve IT issues quickly and clearly.
-Always give step-by-step instructions when applicable.
+const SYSTEM_PROMPT = `You are the NGI IT Support AI Assistant for National Group India.
+You help employees solve IT issues quickly, clearly, and step-by-step.
 Be concise, friendly, and professional.
+Format responses with markdown: use ## headings, - bullet lists, **bold** for key terms, numbered steps.
 If you cannot solve the issue, suggest raising a ticket at /tickets/new.
+Keep responses under 400 words unless the issue requires more detail.
 
-KNOWLEDGE BASE SUMMARY:
-- VPN: GlobalProtect VPN client. Download from company portal. Error 789 = certificate issue, reinstall client. Error 690 = credential issue, reset password.
-- Password Reset: Go to aka.ms/sspr or call IT helpdesk. MFA required. Self-service available 24/7.
-- Outlook sync: After Windows updates, go to File > Account Settings > Repair. If issue persists, remove and re-add account. OAuth token issue common after major updates.
-- MFA Setup: Download Microsoft Authenticator app. Go to aka.ms/mfasetup. Scan QR code. Backup: use SMS or hardware token.
-- Intune Enrollment: Settings > Accounts > Access work or school > Connect. Enter company email. Follow prompts. BYOD requires Company Portal app.
-- Printer offline: Check physical connections, restart printer, delete print queue (services.msc > Print Spooler > restart), reinstall driver.
-- Teams: Available on iOS, Android, Web, Desktop. Remote support via Teams screen share or Quick Assist (Windows key + Ctrl + Q).
-- Software licenses: Request via IT portal at /tickets/new, category: Software. Include software name, version, business justification.
-- New device setup: Submit request ticket. Allow 2-3 business days for Intune enrollment and software installation.
-- Security: Never share passwords. Phishing emails should be reported to security@nationalgroupindia.com. Use built-in email reporting button.
-`;
-
-const MOCK_ANSWERS: Record<string, { content: string; sources: string[] }> = {
-  vpn: {
-    content: `## Connecting to the Company VPN
-
-**Client:** GlobalProtect VPN
-
-### Steps for Windows:
-1. Download **GlobalProtect** from the IT portal (IT → Downloads)
-2. Install and restart your computer
-3. Open GlobalProtect from the system tray
-4. Enter: \`vpn.nationalgroupindia.com\`
-5. Sign in with your Microsoft 365 credentials
-
-### Common errors:
-- **Error 789** – Certificate issue → Uninstall & reinstall GlobalProtect
-- **Error 690** – Wrong credentials → Reset your password at aka.ms/sspr
-- **Firewall blocking** → Temporarily disable third-party firewall and retry
-
-### For Mac:
-Same steps — download the macOS version from the portal.
-
-Still not working? Raise a [support ticket](/tickets/new) and select category **VPN**.`,
-    sources: ["VPN Setup Guide", "GlobalProtect FAQ"],
-  },
-  password: {
-    content: `## Resetting Your Microsoft 365 Password
-
-### Self-service (24/7 — no IT required):
-1. Go to **aka.ms/sspr** in your browser
-2. Enter your work email address
-3. Verify your identity via:
-   - Microsoft Authenticator app notification
-   - SMS to your registered number
-   - Backup email
-4. Create a new strong password (min. 12 characters)
-5. Sign in to all devices with the new password
-
-### Password requirements:
-- Minimum 12 characters
-- At least 1 uppercase, 1 lowercase, 1 number
-- Cannot reuse last 10 passwords
-
-### If self-service fails:
-Contact the IT helpdesk at **+44 20 XXXX XXXX** (business hours) or raise a [ticket](/tickets/new).`,
-    sources: ["Password Reset Guide", "Microsoft 365 Self-Service"],
-  },
-  outlook: {
-    content: `## Fixing Outlook Sync Issues After Windows Update
-
-This is a known issue where Windows updates can break OAuth tokens.
-
-### Quick fix (5 minutes):
-1. Open Outlook
-2. Go to **File → Account Settings → Account Settings**
-3. Select your account → click **Repair**
-4. Follow the wizard and re-enter your password
-5. Restart Outlook
-
-### If that doesn't work:
-1. Remove the account: **File → Account Settings → Remove**
-2. Restart Outlook
-3. Re-add your account using your company email
-4. Wait 5–10 minutes for full sync
-
-### Registry fix (advanced):
-Run this in PowerShell as admin:
-\`Remove-Item "HKCU:\\Software\\Microsoft\\Office\\16.0\\Outlook\\AutoDiscover" -Recurse -Force\`
-
-Still stuck? The IT team can push a fix via Intune remotely — [raise a ticket](/tickets/new).`,
-    sources: ["Outlook Sync Fix", "Windows Update Known Issues"],
-  },
-  mfa: {
-    content: `## Setting Up Multi-Factor Authentication (MFA)
-
-### Step-by-step setup:
-1. Go to **aka.ms/mfasetup** (sign in with your work account)
-2. Click **+ Add sign-in method**
-3. Choose **Authenticator app** (recommended)
-4. Download **Microsoft Authenticator** on your phone (iOS/Android)
-5. In the app: tap **+** → **Work or school account** → **Scan QR code**
-6. Scan the QR code shown on your computer
-7. Enter the 6-digit code to verify
-
-### Backup methods:
-- **SMS** – enter your mobile number as backup
-- **Hardware token** – request one from IT if no smartphone available
-
-### Lost your phone?
-Contact IT immediately: security@nationalgroupindia.com or raise an [urgent ticket](/tickets/new) marked Critical.`,
-    sources: ["MFA Setup Guide", "Microsoft Authenticator FAQ"],
-  },
-  printer: {
-    content: `## Printer Offline — Troubleshooting Steps
-
-### Step 1: Basic checks
-- Confirm the printer is powered on and no error lights
-- Check network/USB cable connection
-- Try printing a test page from the printer itself
-
-### Step 2: Clear the print queue
-1. Press **Windows + R**, type \`services.msc\`, press Enter
-2. Find **Print Spooler** → right-click → **Stop**
-3. Navigate to \`C:\\Windows\\System32\\spool\\PRINTERS\`
-4. Delete all files in this folder
-5. Back in Services, **Start** the Print Spooler
-6. Try printing again
-
-### Step 3: Reinstall driver
-1. Open **Settings → Bluetooth & devices → Printers & scanners**
-2. Select the printer → **Remove**
-3. Click **Add device** and let Windows find it
-4. Or download the driver from the manufacturer's website
-
-Still offline? [Raise a ticket](/tickets/new) with printer asset tag, floor, and room number.`,
-    sources: ["Printer Troubleshooting Guide"],
-  },
-};
-
-function smartResponse(messages: Array<{ role: string; content: string }>) {
-  const lastMsg = messages[messages.length - 1]?.content?.toLowerCase() ?? "";
-
-  if (lastMsg.includes("vpn") || lastMsg.includes("connect") && lastMsg.includes("network")) {
-    return MOCK_ANSWERS.vpn;
-  }
-  if (lastMsg.includes("password") || lastMsg.includes("reset") || lastMsg.includes("sspr")) {
-    return MOCK_ANSWERS.password;
-  }
-  if (lastMsg.includes("outlook") || lastMsg.includes("email") || lastMsg.includes("sync")) {
-    return MOCK_ANSWERS.outlook;
-  }
-  if (lastMsg.includes("mfa") || lastMsg.includes("authenticator") || lastMsg.includes("two-factor") || lastMsg.includes("2fa")) {
-    return MOCK_ANSWERS.mfa;
-  }
-  if (lastMsg.includes("printer") || lastMsg.includes("print") || lastMsg.includes("offline")) {
-    return MOCK_ANSWERS.printer;
-  }
-  if (lastMsg.includes("teams") || lastMsg.includes("screen share") || lastMsg.includes("remote")) {
-    return {
-      content: `## Microsoft Teams Remote Support
-
-### Starting a screen share:
-1. Open a Teams call with the IT support engineer
-2. Click the **Share** icon (screen with arrow) in the call controls
-3. Select your screen or a specific application window
-4. The IT engineer can now see your screen
-
-### Remote control (Quick Assist):
-1. Press **Windows + Ctrl + Q** to open Quick Assist
-2. The IT engineer will provide a **6-digit code**
-3. Enter the code in Quick Assist
-4. Click **Share screen** → Allow remote control
-
-### Teams on mobile:
-- Download **Microsoft Teams** from App Store / Google Play
-- Sign in with your work account
-- Tap **Calls** or **Chat** to reach IT support
-
-Need assistance now? [Raise a ticket](/tickets/new) for a scheduled remote session.`,
-      sources: ["Remote Support Guide", "Teams Quick Reference"],
-    };
-  }
-  if (lastMsg.includes("intune") || lastMsg.includes("enroll") || lastMsg.includes("device")) {
-    return {
-      content: `## Enrolling a Device in Microsoft Intune
-
-### Windows device:
-1. Go to **Settings → Accounts → Access work or school**
-2. Click **Connect**
-3. Enter your work email: \`yourname@nationalgroupindia.com\`
-4. Follow the prompts — your device will be enrolled automatically
-
-### Mac / iOS / Android:
-1. Download **Microsoft Intune Company Portal** from App Store / Play Store
-2. Open the app and sign in with your work account
-3. Follow the enrollment wizard
-4. Install required policies when prompted
-
-### What gets installed:
-- Microsoft Defender (security)
-- Required company apps
-- Compliance policies (screen lock, encryption)
-
-**Note:** IT has visibility into enrolled devices for security purposes. Personal files remain private.
-
-Questions about BYOD? [Raise a ticket](/tickets/new) for clarification.`,
-      sources: ["Intune Enrollment Guide", "BYOD Policy"],
-    };
-  }
-  if (lastMsg.includes("license") || lastMsg.includes("software") || lastMsg.includes("adobe") || lastMsg.includes("install")) {
-    return {
-      content: `## Requesting a Software License
-
-### How to request:
-1. Go to [New Support Request](/tickets/new)
-2. Select category: **Software**
-3. Include:
-   - Software name and version required
-   - Business justification (why you need it)
-   - Number of licenses needed
-   - Preferred timeline
-
-### Approval process:
-- **Standard software** (MS Office, Zoom): Auto-approved, 1–2 business days
-- **Licensed software** (Adobe CC, specialist tools): Requires manager approval, 3–5 days
-- **Enterprise software**: IT + Finance approval, up to 10 days
-
-### Free alternatives available:
-- **Design:** Canva (company account available)
-- **PDF editing:** Microsoft Word, Adobe Acrobat Reader
-- **Video:** Microsoft Clipchamp
-
-Check the IT portal for the full approved software catalogue.`,
-      sources: ["Software Request Process", "Approved Software List"],
-    };
-  }
-
-  return {
-    content: `I can help you with that! Based on your question, here are some initial steps:
-
-1. **Check the Knowledge Base** — search for your specific issue at [/knowledge-base](/knowledge-base)
-2. **Try the basics first** — restart the affected application or device
-3. **Check for updates** — outdated software causes many common issues
-
-If the problem persists, I recommend:
-- Documenting the exact error message or steps to reproduce
-- Taking a screenshot of the issue
-- [Raising a support ticket](/tickets/new) so our IT team can investigate
-
-**What specific issue are you experiencing?** Tell me more and I can give you targeted troubleshooting steps.`,
-    sources: [],
-  };
-}
+KNOWLEDGE BASE:
+- VPN: GlobalProtect client. Download from IT portal. Error 789 = certificate issue, reinstall. Error 690 = credential issue, reset password at aka.ms/sspr.
+- Password Reset: Go to aka.ms/sspr. MFA required. Self-service 24/7. Min 12 chars, uppercase + lowercase + number, no reuse of last 10.
+- Outlook sync: After Windows updates → File > Account Settings > Repair. If fails: remove + re-add account. OAuth token breaks on major updates.
+- MFA Setup: Download Microsoft Authenticator. Go to aka.ms/mfasetup. Scan QR code. Backup: SMS or hardware token. Lost phone → email security@nationalgroupindia.com urgently.
+- Intune Enrollment: Settings > Accounts > Access work or school > Connect. BYOD: install Company Portal app. Mac/iOS/Android: Company Portal from App Store / Play Store.
+- Printer offline: Check cables/power, clear print queue (services.msc > Print Spooler > Stop, delete C:\\Windows\\System32\\spool\\PRINTERS, Start). Reinstall driver if needed.
+- Teams: Remote support via screen share or Quick Assist (Win + Ctrl + Q). Available on iOS, Android, Web, Desktop.
+- Software licenses: Request at /tickets/new → category: Software. Include name, version, business justification. Standard: 1-2 days. Licensed (Adobe CC): 3-5 days with manager approval.
+- New device setup: Submit ticket. Allow 2-3 business days for Intune enrollment and software installation.
+- Security: Never share passwords. Phishing → report to security@nationalgroupindia.com or use the Outlook report button.
+- Wi-Fi issues: Forget network and reconnect. Check if other devices affected. Corporate SSID: NGI-Corporate. Guest: NGI-Guest (no internal access).
+- SharePoint / OneDrive: Sync issues → restart OneDrive from system tray. Right-click → Settings → Account → unlink + relink.`;
 
 export async function POST(req: Request) {
   const { messages } = await req.json() as { messages: Array<{ role: string; content: string }> };
@@ -258,34 +26,135 @@ export async function POST(req: Request) {
 
   if (apiKey) {
     try {
-      // Convert messages to Gemini format (role: "user" | "model")
       const geminiContents = messages.map(m => ({
         role: m.role === "assistant" ? "model" : "user",
         parts: [{ text: m.content }],
       }));
 
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent?alt=sse&key=${apiKey}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            systemInstruction: { parts: [{ text: KB_CONTEXT }] },
+            systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
             contents: geminiContents,
-            generationConfig: { maxOutputTokens: 1000, temperature: 0.4 },
+            generationConfig: { maxOutputTokens: 1500, temperature: 0.4 },
           }),
         }
       );
-      if (res.ok) {
-        const d = await res.json();
-        const text = d.candidates?.[0]?.content?.parts?.[0]?.text ?? "No response generated.";
-        return Response.json({ content: text, sources: [] });
+
+      if (res.ok && res.body) {
+        const encoder = new TextEncoder();
+        const upstream = res.body.getReader();
+        const decoder = new TextDecoder();
+
+        const stream = new ReadableStream({
+          async start(controller) {
+            let buf = "";
+            while (true) {
+              const { done, value } = await upstream.read();
+              if (done) break;
+              buf += decoder.decode(value, { stream: true });
+              const lines = buf.split("\n");
+              buf = lines.pop() ?? "";
+              for (const line of lines) {
+                if (!line.startsWith("data: ")) continue;
+                const raw = line.slice(6).trim();
+                if (!raw || raw === "[DONE]") continue;
+                try {
+                  const json = JSON.parse(raw);
+                  const text: string = json.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+                  if (text) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text })}\n\n`));
+                } catch { /* skip malformed chunks */ }
+              }
+            }
+            // flush remainder
+            if (buf.startsWith("data: ")) {
+              const raw = buf.slice(6).trim();
+              if (raw && raw !== "[DONE]") {
+                try {
+                  const json = JSON.parse(raw);
+                  const text: string = json.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+                  if (text) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text })}\n\n`));
+                } catch { /* ignore */ }
+              }
+            }
+            controller.close();
+          },
+          cancel() { upstream.cancel(); },
+        });
+
+        return new Response(stream, {
+          headers: {
+            "Content-Type": "text/event-stream",
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+          },
+        });
       }
-    } catch { /* fall through to mock */ }
+    } catch (err) {
+      console.error("Gemini API error:", err);
+      /* fall through to mock */
+    }
   }
 
-  // Smart mock response (used when GEMINI_API_KEY is not set)
-  await new Promise(r => setTimeout(r, 600 + Math.random() * 800));
-  const mock = smartResponse(messages);
+  // ── Smart mock fallback (used when GEMINI_API_KEY is not set) ──
+  await new Promise(r => setTimeout(r, 500 + Math.random() * 700));
+  const mock = smartMock(messages);
   return Response.json(mock);
 }
+
+// ── Mock responses for local dev without API key ──────────────
+function smartMock(messages: Array<{ role: string; content: string }>) {
+  const q = messages[messages.length - 1]?.content?.toLowerCase() ?? "";
+
+  if (q.includes("vpn") || (q.includes("connect") && q.includes("network"))) return MOCKS.vpn;
+  if (q.includes("password") || q.includes("reset") || q.includes("sspr")) return MOCKS.password;
+  if (q.includes("outlook") || q.includes("email") || q.includes("sync")) return MOCKS.outlook;
+  if (q.includes("mfa") || q.includes("authenticator") || q.includes("two-factor") || q.includes("2fa")) return MOCKS.mfa;
+  if (q.includes("printer") || q.includes("print") || q.includes("offline")) return MOCKS.printer;
+  if (q.includes("teams") || q.includes("screen share") || q.includes("remote")) return MOCKS.teams;
+  if (q.includes("intune") || q.includes("enroll") || q.includes("device")) return MOCKS.intune;
+  if (q.includes("license") || q.includes("software") || q.includes("adobe") || q.includes("install")) return MOCKS.software;
+
+  return {
+    content: `I can help with that!\n\n1. **Check the Knowledge Base** — search at [/knowledge-base](/knowledge-base)\n2. **Try the basics** — restart the affected app or device\n3. **Check for updates** — outdated software causes many common issues\n\nIf the problem persists, [raise a support ticket](/tickets/new) with details and a screenshot.\n\nWhat specific issue are you facing?`,
+    sources: [],
+  };
+}
+
+const MOCKS: Record<string, { content: string; sources: string[] }> = {
+  vpn: {
+    content: `## Connecting to the Company VPN\n\n**Client:** GlobalProtect VPN\n\n### Steps for Windows:\n1. Download **GlobalProtect** from the IT portal\n2. Install and restart your computer\n3. Open GlobalProtect from the system tray\n4. Enter: \`vpn.nationalgroupindia.com\`\n5. Sign in with your Microsoft 365 credentials\n\n### Common errors:\n- **Error 789** – Certificate issue → Uninstall & reinstall GlobalProtect\n- **Error 690** – Wrong credentials → Reset password at aka.ms/sspr\n\nStill not working? [Raise a support ticket](/tickets/new) → category **VPN**.`,
+    sources: ["VPN Setup Guide", "GlobalProtect FAQ"],
+  },
+  password: {
+    content: `## Resetting Your Microsoft 365 Password\n\n### Self-service (24/7):\n1. Go to **aka.ms/sspr**\n2. Enter your work email\n3. Verify via Microsoft Authenticator, SMS, or backup email\n4. Create a new strong password (min. 12 characters)\n\n### Password rules:\n- Minimum 12 characters\n- Must include uppercase, lowercase, and a number\n- Cannot reuse last 10 passwords\n\n### If self-service fails:\n[Raise a ticket](/tickets/new) — IT can reset it manually during business hours.`,
+    sources: ["Password Reset Guide"],
+  },
+  outlook: {
+    content: `## Fixing Outlook Sync Issues After Windows Update\n\n### Quick fix:\n1. Open Outlook → **File → Account Settings → Repair**\n2. Follow the wizard and re-enter your password\n3. Restart Outlook\n\n### If that doesn't work:\n1. **File → Account Settings → Remove** your account\n2. Restart Outlook\n3. Re-add your company email — wait 5–10 minutes for sync\n\nStill stuck? [Raise a ticket](/tickets/new) — IT can push a fix via Intune.`,
+    sources: ["Outlook Sync Fix"],
+  },
+  mfa: {
+    content: `## Setting Up Multi-Factor Authentication\n\n1. Go to **aka.ms/mfasetup** and sign in\n2. Click **+ Add sign-in method** → choose **Authenticator app**\n3. Download **Microsoft Authenticator** on your phone\n4. In the app: **+** → **Work or school account** → **Scan QR code**\n5. Scan the code shown on screen and enter the 6-digit verification code\n\n### Backup methods:\n- **SMS** — enter your mobile number as backup\n- **Hardware token** — request from IT if no smartphone\n\n**Lost your phone?** Contact IT immediately at security@nationalgroupindia.com.`,
+    sources: ["MFA Setup Guide"],
+  },
+  printer: {
+    content: `## Printer Offline — Troubleshooting\n\n### Step 1: Basic checks\n- Printer is powered on and no error lights\n- Cable/network connection is secure\n\n### Step 2: Clear the print queue\n1. Press **Win + R**, type \`services.msc\`\n2. Find **Print Spooler** → right-click → **Stop**\n3. Go to \`C:\\Windows\\System32\\spool\\PRINTERS\` and delete all files\n4. **Start** Print Spooler again\n5. Try printing\n\n### Step 3: Reinstall driver\n- **Settings → Printers & scanners** → Remove → Add device\n\n[Raise a ticket](/tickets/new) with the printer asset tag if still not working.`,
+    sources: ["Printer Troubleshooting Guide"],
+  },
+  teams: {
+    content: `## Microsoft Teams Remote Support\n\n### Screen share in a call:\n1. Start a call with the IT engineer\n2. Click the **Share** icon in call controls\n3. Choose your screen or a specific window\n\n### Quick Assist (remote control):\n1. Press **Windows + Ctrl + Q**\n2. The IT engineer provides a 6-digit code\n3. Enter the code → click **Share screen** → Allow remote control\n\n### Teams on mobile:\n- Download Microsoft Teams from App Store / Google Play\n- Sign in with your work account\n\n[Raise a ticket](/tickets/new) to schedule a remote session.`,
+    sources: ["Remote Support Guide"],
+  },
+  intune: {
+    content: `## Enrolling a Device in Microsoft Intune\n\n### Windows:\n1. **Settings → Accounts → Access work or school → Connect**\n2. Enter your work email\n3. Follow the prompts — device enrolled automatically\n\n### Mac / iOS / Android:\n1. Download **Microsoft Intune Company Portal**\n2. Sign in with your work account\n3. Follow the enrollment wizard\n\n### What gets installed:\n- Microsoft Defender (security)\n- Required company apps\n- Compliance policies (screen lock, encryption)\n\nPersonal files remain private. [Questions? Raise a ticket](/tickets/new).`,
+    sources: ["Intune Enrollment Guide"],
+  },
+  software: {
+    content: `## Requesting a Software License\n\n1. Go to [New Support Request](/tickets/new)\n2. Select category: **Software**\n3. Include:\n   - Software name and version\n   - Business justification\n   - Number of licenses\n   - Preferred timeline\n\n### Approval timeline:\n- **Standard software** (Office, Zoom): Auto-approved, 1–2 days\n- **Licensed software** (Adobe CC): Manager approval, 3–5 days\n- **Enterprise software**: IT + Finance approval, up to 10 days`,
+    sources: ["Software Request Process"],
+  },
+};

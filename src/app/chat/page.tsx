@@ -112,6 +112,7 @@ export default function ChatPage() {
     setDraft("");
 
     const userMsg: Message = { id: genId(), role: "user", content, time: new Date() };
+    const priorMessages = messages;
 
     setChats(prev => prev.map(c => c.id === activeChatId
       ? { ...c, title: c.messages.length === 0 ? content.slice(0, 48) : c.title, messages: [...c.messages, userMsg], updatedAt: new Date() }
@@ -123,24 +124,61 @@ export default function ChatPage() {
       const res = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: [...messages, userMsg].map(m => ({ role: m.role, content: m.content })) }),
+        body: JSON.stringify({ messages: [...priorMessages, userMsg].map(m => ({ role: m.role, content: m.content })) }),
       });
-      const data = await res.json();
-      const aiMsg: Message = {
-        id: genId(),
-        role: "assistant",
-        content: data.content ?? "I'm sorry, I couldn't process that. Please try again.",
-        time: new Date(),
-        sources: data.sources,
-      };
-      setChats(prev => prev.map(c => c.id === activeChatId
-        ? { ...c, messages: [...c.messages, userMsg, aiMsg], updatedAt: new Date() }
-        : c
-      ));
+
+      if (res.headers.get("content-type")?.includes("text/event-stream") && res.body) {
+        // ── Streaming response ──
+        const aiMsgId = genId();
+        const aiMsg: Message = { id: aiMsgId, role: "assistant", content: "", time: new Date() };
+        setChats(prev => prev.map(c => c.id === activeChatId
+          ? { ...c, messages: [...c.messages, aiMsg], updatedAt: new Date() }
+          : c
+        ));
+        setLoading(false);
+
+        const reader = res.body.getReader();
+        const dec = new TextDecoder();
+        let buf = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += dec.decode(value, { stream: true });
+          const lines = buf.split("\n");
+          buf = lines.pop() ?? "";
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) continue;
+            try {
+              const { text } = JSON.parse(line.slice(6));
+              if (text) {
+                setChats(prev => prev.map(c => c.id === activeChatId
+                  ? { ...c, messages: c.messages.map(m => m.id === aiMsgId ? { ...m, content: m.content + text } : m) }
+                  : c
+                ));
+              }
+            } catch { /* skip malformed chunk */ }
+          }
+        }
+      } else {
+        // ── JSON fallback (mock) ──
+        const data = await res.json();
+        const aiMsg: Message = {
+          id: genId(),
+          role: "assistant",
+          content: data.content ?? "I'm sorry, I couldn't process that. Please try again.",
+          time: new Date(),
+          sources: data.sources,
+        };
+        setChats(prev => prev.map(c => c.id === activeChatId
+          ? { ...c, messages: [...c.messages, aiMsg], updatedAt: new Date() }
+          : c
+        ));
+      }
     } catch {
       const errMsg: Message = { id: genId(), role: "assistant", content: "Sorry, I'm having trouble connecting right now. Please try again in a moment.", time: new Date() };
       setChats(prev => prev.map(c => c.id === activeChatId
-        ? { ...c, messages: [...c.messages, userMsg, errMsg], updatedAt: new Date() }
+        ? { ...c, messages: [...c.messages, errMsg], updatedAt: new Date() }
         : c
       ));
     } finally {
