@@ -2,7 +2,10 @@ services:
   ticket-server:
     build: .
     ports:
-      - "4000:4000"
+      - "4001:4001"
+    environment:
+      - PORT=4001
+      - TICKET_API_KEY=${TICKET_API_KEY}
     volumes:
       - /data/ngi-tickets:/data
     restart: unless-stopped
