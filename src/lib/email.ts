@@ -1,18 +1,6 @@
-import nodemailer from "nodemailer";
+import { getGraphToken } from "@/lib/graph";
 
-const SENDER      = process.env.SMTP_USER ?? "connect@nationalgroupindia.com";
-const SENDER_NAME = "NGI IT Support";
-
-const transporter = nodemailer.createTransport({
-  host:   process.env.SMTP_HOST ?? "smtp.office365.com",
-  port:   Number(process.env.SMTP_PORT ?? 587),
-  secure: false,
-  auth: {
-    user: process.env.SMTP_USER ?? "connect@nationalgroupindia.com",
-    pass: process.env.SMTP_PASS,
-  },
-  tls: { ciphers: "SSLv3" },
-});
+const SENDER = process.env.SMTP_USER ?? "connect@nationalgroupindia.com";
 
 export async function sendEmail({
   to,
@@ -23,13 +11,35 @@ export async function sendEmail({
   subject: string;
   html: string;
 }) {
-  const toList = Array.isArray(to) ? to.join(", ") : to;
-  await transporter.sendMail({
-    from:    `"${SENDER_NAME}" <${SENDER}>`,
-    to:      toList,
-    subject,
-    html,
-  });
+  const token  = await getGraphToken();
+  const toList = (Array.isArray(to) ? to : [to]).map(addr => ({
+    emailAddress: { address: addr },
+  }));
+
+  const res = await fetch(
+    `https://graph.microsoft.com/v1.0/users/${SENDER}/sendMail`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        message: {
+          subject,
+          body: { contentType: "HTML", content: html },
+          from: { emailAddress: { address: SENDER, name: "NGI IT Support" } },
+          toRecipients: toList,
+        },
+        saveToSentItems: false,
+      }),
+    }
+  );
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Graph sendMail ${res.status}: ${text}`);
+  }
 }
 
 export function ticketCreatedHtml(ticket: {
