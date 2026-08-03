@@ -4,12 +4,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import {
-  Bell, Search, ChevronDown, LogOut, Settings, Menu, X, Sun, Moon,
+  Bell, Search, ChevronDown, LogOut, Settings, Menu, X, Sun, Moon, Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV_MAIN = [
   { href: "/tickets", label: "My Requests" },
+  { href: "/chat",    label: "AI Assist" },
 ];
 
 const NAV_ADMIN = [
@@ -133,6 +134,7 @@ export function TopNav() {
                 onMouseEnter={e => { if (!active) { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)"; (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.85)"; }}}
                 onMouseLeave={e => { if (!active) { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.58)"; }}}
               >
+                {href === "/chat" && <Sparkles style={{ width: 12, height: 12, marginRight: 5, flexShrink: 0 }} />}
                 {label}
               </Link>
             );
@@ -314,6 +316,10 @@ export function TopNav() {
         <div className="flex md:hidden flex-col" style={{ background: "#0F1D2E", borderBottom: "1px solid rgba(255,255,255,0.08)", zIndex: 99 }}>
           {/* My Requests */}
           <Link href="/tickets" style={{ padding: "12px 20px", fontSize: 13, fontWeight: isActive("/tickets") ? 600 : 400, color: isActive("/tickets") ? "#FFF" : "rgba(255,255,255,0.6)", borderLeft: isActive("/tickets") ? "3px solid #C49020" : "3px solid transparent", textDecoration: "none", display: "block" }}>My Requests</Link>
+          {/* AI Assist */}
+          <Link href="/chat" style={{ padding: "12px 20px", fontSize: 13, fontWeight: isActive("/chat") ? 600 : 400, color: isActive("/chat") ? "#FFF" : "rgba(255,255,255,0.6)", borderLeft: isActive("/chat") ? "3px solid #C49020" : "3px solid transparent", textDecoration: "none", display: "flex", alignItems: "center", gap: 6 }}>
+            <Sparkles style={{ width: 13, height: 13 }} /> AI Assist
+          </Link>
           {/* New Request */}
           <Link href="/tickets/new" style={{ padding: "12px 20px", fontSize: 13, fontWeight: 600, color: "#C49020", borderLeft: isActive("/tickets/new") ? "3px solid #C49020" : "3px solid transparent", textDecoration: "none", display: "block" }}>+ New Request</Link>
           {/* Admin: Ticket Inbox */}
